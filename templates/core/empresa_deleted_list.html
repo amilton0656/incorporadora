@@ -1,0 +1,86 @@
+{% extends 'base_intranet.html' %}
+{% load formatters %}
+{% block title %}Empresas excluídas{% endblock %}
+
+{% block breadcrumb %}
+<nav class="text-sm text-gray-400 mb-6">
+  <a href="{% url 'intranet:welcome' %}" class="hover:text-brand transition">Início</a>
+  <span class="mx-2">/</span>
+  <a href="{% url 'core:empresa_list' %}" class="hover:text-brand transition">Empresas</a>
+  <span class="mx-2">/</span>
+  <span class="text-gray-700 font-medium">Excluídas</span>
+</nav>
+{% endblock %}
+
+{% block inner_content %}
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h1 class="text-2xl font-semibold text-gray-800">Empresas excluídas</h1>
+    <p class="text-gray-400 text-sm mt-0.5">{{ paginator.count }} empresa{{ paginator.count|pluralize }} excluída{{ paginator.count|pluralize }}</p>
+  </div>
+  <a href="{% url 'core:empresa_list' %}"
+     class="text-sm text-gray-500 hover:text-brand transition font-medium">
+    ← Voltar para lista
+  </a>
+</div>
+
+<div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 border-b border-gray-200">
+        <tr>
+          <th class="text-left px-6 py-3 font-semibold text-gray-600">Nome</th>
+          <th class="text-left px-6 py-3 font-semibold text-gray-600 hidden md:table-cell">CNPJ</th>
+          <th class="text-left px-6 py-3 font-semibold text-gray-600 hidden lg:table-cell">Excluída em</th>
+          <th class="text-left px-6 py-3 font-semibold text-gray-600 hidden lg:table-cell">Excluída por</th>
+          <th class="px-6 py-3"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for empresa in empresas %}
+        <tr class="hover:bg-gray-50 transition">
+          <td class="px-6 py-4">
+            <div class="font-medium text-gray-500">{{ empresa.nome }}</div>
+            <div class="text-gray-400 text-xs">{{ empresa.razao_social }}</div>
+          </td>
+          <td class="px-6 py-4 text-gray-400 hidden md:table-cell">{{ empresa.cnpj|format_cnpj }}</td>
+          <td class="px-6 py-4 text-gray-400 hidden lg:table-cell">{{ empresa.deletado_em|date:'d/m/Y H:i' }}</td>
+          <td class="px-6 py-4 text-gray-400 hidden lg:table-cell">{{ empresa.deletado_por|default:'—' }}</td>
+          <td class="px-6 py-4 text-right">
+            <div class="flex items-center justify-end gap-3">
+              <a href="{% url 'core:empresa_detail' empresa.pk %}"
+                 class="text-brand hover:underline text-xs font-medium">Ver histórico</a>
+              <form method="post" action="{% url 'core:empresa_restore' empresa.pk %}">
+                {% csrf_token %}
+                <button type="submit"
+                        class="text-green-600 hover:text-green-800 text-xs font-medium hover:underline">
+                  Restaurar
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="px-6 py-12 text-center text-gray-400">
+            Nenhuma empresa excluída.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if is_paginated %}
+<div class="flex items-center justify-center gap-2 mt-6 text-sm">
+  {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}" class="px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition">Anterior</a>
+  {% endif %}
+  <span class="text-gray-500">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}" class="px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition">Próxima</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

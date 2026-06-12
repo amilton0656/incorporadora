@@ -1,0 +1,248 @@
+{% extends 'base_intranet.html' %}
+{% load formatters %}
+{% block title %}{{ empreendimento.nome }}{% endblock %}
+
+{% block breadcrumb %}
+<nav class="text-sm text-gray-400 mb-6">
+  <a href="{% url 'intranet:welcome' %}" class="hover:text-brand transition">Início</a>
+  <span class="mx-2">/</span>
+  <a href="{% url 'empreendimentos:empreendimento_list' %}" class="hover:text-brand transition">Empreendimentos</a>
+  <span class="mx-2">/</span>
+  <span class="text-gray-700 font-medium">{{ empreendimento.nome }}</span>
+</nav>
+{% endblock %}
+
+{% block inner_content %}
+
+<!-- Cabeçalho -->
+<div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+  <div>
+    <div class="flex items-center gap-3 mb-1">
+      <h1 class="text-2xl font-semibold text-gray-800">{{ empreendimento.nome }}</h1>
+      {% if empreendimento.deletado %}
+        <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-600">Excluído</span>
+      {% else %}
+        <span class="px-2.5 py-0.5 rounded-full text-xs font-medium {{ empreendimento.status_badge_class }}">
+          {{ empreendimento.get_status_display }}
+        </span>
+      {% endif %}
+    </div>
+    <p class="text-gray-400 text-sm">{{ empreendimento.empresa.nome }}</p>
+  </div>
+
+  <div class="flex flex-wrap gap-2">
+    {% if empreendimento.deletado %}
+    <form method="post" action="{% url 'empreendimentos:empreendimento_restore' empreendimento.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+        Restaurar
+      </button>
+    </form>
+    {% else %}
+    <a href="{% url 'empreendimentos:empreendimento_update' empreendimento.pk %}"
+       class="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-gray-700">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+      </svg>
+      Editar
+    </a>
+    <a href="{% url 'empreendimentos:empreendimento_delete' empreendimento.pk %}"
+       class="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+      </svg>
+      Excluir
+    </a>
+    {% endif %}
+    {% if not empreendimento.deletado %}
+    <a href="{% url 'empreendimentos:importar_unidades' empreendimento.pk %}"
+       class="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-gray-700">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+      </svg>
+      Importar unidades
+    </a>
+    {% endif %}
+    <a href="{% url 'empreendimentos:empreendimento_pdf' empreendimento.pk %}" target="_blank"
+       class="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 bg-brand hover:bg-brand-dark text-white rounded-lg transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+      </svg>
+      Exportar PDF
+    </a>
+  </div>
+</div>
+
+<!-- Dados básicos -->
+<div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
+  <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-5">Dados do empreendimento</h2>
+  <dl class="space-y-4">
+    {% include 'core/_detail_row.html' with label='Nome' value=empreendimento.nome %}
+    {% include 'core/_detail_row.html' with label='Empresa' value=empreendimento.empresa.nome %}
+    {% include 'core/_detail_row.html' with label='Status' value=empreendimento.get_status_display %}
+    {% include 'core/_detail_row.html' with label='Cadastrado em' value=empreendimento.criado_em|date:'d/m/Y' %}
+    {% include 'core/_detail_row.html' with label='Atualizado em' value=empreendimento.atualizado_em|date:'d/m/Y H:i' %}
+  </dl>
+
+  <div class="border-t border-gray-100 mt-5 pt-5">
+    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Totalizações</p>
+    <dl class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+
+      <div class="bg-gray-50 rounded-lg px-4 py-3">
+        <dt class="text-xs text-gray-400 mb-1">Área Privativa</dt>
+        <dd class="text-sm font-semibold text-gray-800">{{ totais.area_privativa|brl_area:2 }} m²</dd>
+      </div>
+
+      <div class="bg-gray-50 rounded-lg px-4 py-3">
+        <dt class="text-xs text-gray-400 mb-1">Área Priv. Acessória</dt>
+        <dd class="text-sm font-semibold text-gray-800">{{ totais.area_privativa_acessoria|brl_area:2 }} m²</dd>
+      </div>
+
+      <div class="bg-gray-50 rounded-lg px-4 py-3">
+        <dt class="text-xs text-gray-400 mb-1">Área Comum</dt>
+        <dd class="text-sm font-semibold text-gray-800">{{ totais.area_comum|brl_area:2 }} m²</dd>
+      </div>
+
+      <div class="bg-gray-50 rounded-lg px-4 py-3">
+        <dt class="text-xs text-gray-400 mb-1">Área Real Total</dt>
+        <dd class="text-sm font-semibold text-gray-800">{{ totais.area_real_total|brl_area:2 }} m²</dd>
+      </div>
+
+      <div class="bg-brand/5 border border-brand/20 rounded-lg px-4 py-3 col-span-2 sm:col-span-2">
+        <dt class="text-xs text-gray-400 mb-1">VGV</dt>
+        <dd class="text-base font-bold text-brand">{{ totais.vgv|brl_moeda }}</dd>
+      </div>
+
+    </dl>
+  </div>
+</div>
+
+<!-- Blocos -->
+<div class="mb-10">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-lg font-semibold text-gray-800">
+      Blocos
+      <span class="ml-2 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">{{ blocos|length }}</span>
+    </h2>
+    {% if not empreendimento.deletado %}
+    <a href="{% url 'empreendimentos:bloco_create' empreendimento.pk %}"
+       class="inline-flex items-center gap-1.5 text-sm font-medium px-3 py-2 bg-brand hover:bg-brand-dark text-white rounded-lg transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+      </svg>
+      Novo bloco
+    </a>
+    {% endif %}
+  </div>
+
+  {% if blocos %}
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    {% for bloco in blocos %}
+    <div class="bg-white border border-gray-200 rounded-xl p-5 hover:border-brand transition group">
+      <div class="flex items-start justify-between">
+        <div>
+          <h3 class="font-semibold text-gray-800 group-hover:text-brand transition">{{ bloco.nome }}</h3>
+          <p class="text-xs text-gray-400 mt-0.5">{{ bloco.unidades.count }} unidade{{ bloco.unidades.count|pluralize }}</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <a href="{% url 'empreendimentos:bloco_update' empreendimento.pk bloco.pk %}"
+             class="text-gray-400 hover:text-brand transition" title="Editar">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+            </svg>
+          </a>
+          <a href="{% url 'empreendimentos:bloco_delete' empreendimento.pk bloco.pk %}"
+             class="text-gray-400 hover:text-red-500 transition" title="Excluir">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+      <a href="{% url 'empreendimentos:bloco_detail' empreendimento.pk bloco.pk %}"
+         class="mt-3 inline-flex items-center gap-1 text-xs font-medium text-brand hover:underline">
+        Ver unidades
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+      </a>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="bg-white border border-gray-200 rounded-xl px-6 py-10 text-center text-gray-400 text-sm">
+    Nenhum bloco cadastrado ainda.
+    {% if not empreendimento.deletado %}
+    <br>
+    <a href="{% url 'empreendimentos:bloco_create' empreendimento.pk %}" class="text-brand hover:underline font-medium mt-2 inline-block">Adicionar o primeiro bloco</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<!-- Histórico -->
+<div class="mt-4">
+  <details class="group">
+    <summary class="flex items-center justify-between cursor-pointer list-none select-none
+                    bg-white border border-gray-200 rounded-xl px-5 py-3 hover:bg-gray-50 transition">
+      <div class="flex items-center gap-3">
+        <svg class="w-4 h-4 text-gray-400 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+        <span class="text-sm font-semibold text-gray-700">Histórico de alterações</span>
+        {% if history_entries %}
+        <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">{{ history_entries|length }} registro{{ history_entries|length|pluralize }}</span>
+        {% endif %}
+      </div>
+    </summary>
+    <div class="mt-2 space-y-3">
+      {% if history_entries %}
+        {% for entry in history_entries %}
+        <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between px-5 py-3 gap-2
+            {% if entry.tipo == '+' %}bg-green-50 border-b border-green-100
+            {% elif entry.tipo == 'soft_delete' %}bg-red-50 border-b border-red-100
+            {% elif entry.tipo == 'restore' %}bg-teal-50 border-b border-teal-100
+            {% else %}bg-gray-50 border-b border-gray-100{% endif %}">
+            <div class="flex items-center gap-3">
+              {% if entry.tipo == '+' %}<span class="px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-700">Criação</span>
+              {% elif entry.tipo == '~' %}<span class="px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-700">Edição</span>
+              {% elif entry.tipo == 'soft_delete' %}<span class="px-2 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-600">Excluído</span>
+              {% elif entry.tipo == 'restore' %}<span class="px-2 py-0.5 rounded text-xs font-semibold bg-teal-100 text-teal-700">Restaurado</span>
+              {% endif %}
+              <span class="text-sm text-gray-500">{{ entry.record.history_date|date:'d/m/Y \à\s H:i' }}</span>
+            </div>
+            <span class="text-sm text-gray-500">por <strong class="text-gray-700">{{ entry.record.history_user|default:'sistema' }}</strong></span>
+          </div>
+          {% if entry.alteracoes %}
+          <div class="divide-y divide-gray-50">
+            {% for alt in entry.alteracoes %}
+            <div class="px-5 py-2.5 grid grid-cols-1 sm:grid-cols-3 gap-1 text-sm items-center">
+              <span class="font-medium text-gray-600">{{ alt.campo }}</span>
+              <div class="sm:col-span-2 flex items-center gap-2 flex-wrap">
+                <span class="text-gray-400 line-through text-xs bg-red-50 px-2 py-0.5 rounded">{{ alt.de }}</span>
+                <svg class="w-3 h-3 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                <span class="text-gray-800 text-xs bg-green-50 px-2 py-0.5 rounded font-medium">{{ alt.para }}</span>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% elif entry.tipo == '+' %}<p class="px-5 py-2.5 text-sm text-gray-400">Registro criado.</p>
+          {% elif entry.tipo == 'soft_delete' %}<p class="px-5 py-2.5 text-sm text-red-400">Movido para a lixeira.</p>
+          {% elif entry.tipo == 'restore' %}<p class="px-5 py-2.5 text-sm text-teal-600">Restaurado da lixeira.</p>
+          {% endif %}
+        </div>
+        {% endfor %}
+      {% else %}
+      <div class="bg-white border border-gray-200 rounded-xl px-6 py-8 text-center text-gray-400 text-sm">
+        Nenhum registro de histórico encontrado.
+      </div>
+      {% endif %}
+    </div>
+  </details>
+</div>
+
+{% endblock %}

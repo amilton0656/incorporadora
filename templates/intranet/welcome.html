@@ -1,0 +1,68 @@
+{% extends 'base_intranet.html' %}
+{% block title %}Início{% endblock %}
+
+{% block inner_content %}
+
+<!-- Cabeçalho -->
+<div class="mb-8">
+  <h1 class="text-2xl font-semibold text-gray-800">
+    Boas-vindas, {{ request.user.get_full_name|default:request.user.username }}!
+  </h1>
+  <p class="text-gray-400 text-sm mt-1">
+    {% if empresa_atual %}
+      {{ empresa_atual.nome }} — selecione um módulo para começar.
+    {% else %}
+      Selecione uma empresa para acessar os módulos.
+    {% endif %}
+  </p>
+</div>
+
+<!-- Seletor de empresa (usuários com múltiplas empresas sem seleção) -->
+{% if not empresa_atual and user_empresas %}
+<div class="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-8">
+  <h2 class="text-base font-semibold text-blue-800 mb-1">Selecione a empresa</h2>
+  <p class="text-blue-600 text-sm mb-4">Escolha com qual empresa deseja trabalhar nesta sessão.</p>
+  <div class="flex flex-wrap gap-3">
+    {% for emp in user_empresas %}
+    <form method="post" action="{% url 'core:selecionar_empresa' %}">
+      {% csrf_token %}
+      <input type="hidden" name="empresa_id" value="{{ emp.pk }}">
+      <button type="submit"
+              class="px-5 py-2.5 bg-white border border-blue-300 hover:border-brand hover:text-brand
+                     rounded-lg text-sm font-medium text-gray-700 transition shadow-sm">
+        {{ emp.nome }}
+      </button>
+    </form>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Grid de módulos -->
+{% url 'empreendimentos:empreendimento_list' as url_empreendimentos %}
+{% with cards_ativos=empresa_atual|default:request.user.is_superuser %}
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+
+  {% include 'intranet/_card_modulo.html' with titulo='Empreendimentos' descricao='Cadastro de obras, fases e blocos.' cor='blue' icon='building' ativo=cards_ativos link_url=url_empreendimentos %}
+  {% include 'intranet/_card_modulo.html' with titulo='Unidades' descricao='Tabela de disponibilidade e plantas.' cor='green' icon='home' ativo=cards_ativos %}
+  {% include 'intranet/_card_modulo.html' with titulo='Clientes' descricao='Cadastro e histórico de clientes.' cor='purple' icon='users' ativo=cards_ativos %}
+  {% include 'intranet/_card_modulo.html' with titulo='Vendas' descricao='Propostas, contratos e distratos.' cor='yellow' icon='document' ativo=cards_ativos %}
+  {% include 'intranet/_card_modulo.html' with titulo='Financeiro' descricao='Parcelas, recebimentos e inadimplência.' cor='red' icon='money' ativo=cards_ativos %}
+
+  <!-- Card Administração — sempre disponível -->
+  <a href="{% url 'core:empresa_list' %}"
+     class="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-md transition block">
+    <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center mb-4">
+      <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+      </svg>
+    </div>
+    <h3 class="font-semibold text-gray-800 mb-1">Administração</h3>
+    <p class="text-gray-400 text-sm">Empresas, usuários e configurações.</p>
+  </a>
+
+</div>
+{% endwith %}
+{% endblock %}

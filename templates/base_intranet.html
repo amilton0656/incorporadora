@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<!-- Navbar -->
+<nav class="bg-brand shadow-md">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between h-16">
+
+      <!-- Logo + menu -->
+      <div class="flex items-center gap-6">
+        <a href="{% url 'intranet:welcome' %}" class="text-white font-bold text-lg tracking-wide shrink-0">
+          INCORPORADORA
+        </a>
+        {% if empresa_atual or request.user.is_superuser %}
+        <div class="hidden md:flex items-center gap-1 text-sm">
+          <a href="{% url 'core:empresa_list' %}"
+             class="px-3 py-1.5 rounded text-blue-200 hover:text-white hover:bg-brand-light transition">
+            Empresas
+          </a>
+          <a href="{% url 'empreendimentos:empreendimento_list' %}"
+             class="px-3 py-1.5 rounded text-blue-200 hover:text-white hover:bg-brand-light transition">
+            Empreendimentos
+          </a>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Empresa atual + usuário -->
+      <div class="flex items-center gap-3">
+
+        <!-- Seletor / indicador de empresa -->
+        {% if user_empresas %}
+          {% if user_empresas|length > 1 or request.user.is_superuser %}
+          <!-- Dropdown para trocar empresa -->
+          <div class="relative group hidden sm:block">
+            <button class="flex items-center gap-1.5 text-blue-200 hover:text-white text-sm transition px-2 py-1 rounded">
+              <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0H5m5-5h4"/>
+              </svg>
+              <span class="max-w-[140px] truncate">{{ empresa_atual.nome|default:'Selecionar empresa' }}</span>
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </button>
+            <div class="absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-100 py-1
+                        invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all z-50">
+              {% for emp in user_empresas %}
+              <form method="post" action="{% url 'core:selecionar_empresa' %}">
+                {% csrf_token %}
+                <input type="hidden" name="empresa_id" value="{{ emp.pk }}">
+                <button type="submit"
+                  class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition
+                         {% if empresa_atual.pk == emp.pk %}font-semibold text-brand{% else %}text-gray-700{% endif %}">
+                  {{ emp.nome }}
+                  {% if empresa_atual.pk == emp.pk %}
+                    <span class="text-xs text-brand ml-1">✓</span>
+                  {% endif %}
+                </button>
+              </form>
+              {% endfor %}
+            </div>
+          </div>
+          {% else %}
+          <!-- Apenas 1 empresa — mostra o nome -->
+          <span class="hidden sm:flex items-center gap-1.5 text-blue-200 text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0H5m5-5h4"/>
+            </svg>
+            {{ empresa_atual.nome }}
+          </span>
+          {% endif %}
+        {% endif %}
+
+        <div class="h-4 w-px bg-blue-400 hidden sm:block"></div>
+
+        <span class="hidden sm:block text-blue-200 text-sm truncate max-w-[120px]">
+          {{ request.user.get_full_name|default:request.user.username }}
+        </span>
+        <a href="{% url 'logout' %}" class="text-blue-200 hover:text-white text-sm transition shrink-0">Sair</a>
+      </div>
+
+    </div>
+  </div>
+</nav>
+
+<!-- Conteúdo -->
+<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 overflow-x-hidden">
+
+  {% block breadcrumb %}{% endblock %}
+
+  {% if messages %}
+    {% for message in messages %}
+    <div class="mb-4 px-4 py-3 rounded-lg text-sm border
+      {% if message.tags == 'success' %}bg-green-50 border-green-200 text-green-700
+      {% elif message.tags == 'error' %}bg-red-50 border-red-200 text-red-700
+      {% else %}bg-blue-50 border-blue-200 text-blue-700{% endif %}">
+      {{ message }}
+    </div>
+    {% endfor %}
+  {% endif %}
+
+  {% block inner_content %}{% endblock %}
+</main>
+
+{% endblock %}

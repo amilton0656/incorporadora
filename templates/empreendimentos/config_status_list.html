@@ -1,0 +1,53 @@
+{% extends 'base_intranet.html' %}
+{% block title %}Status de unidade{% endblock %}
+
+{% block breadcrumb %}
+<nav class="text-sm text-gray-400 mb-6">
+  <a href="{% url 'intranet:welcome' %}" class="hover:text-brand transition">Início</a>
+  <span class="mx-2">/</span>
+  <a href="{% url 'empreendimentos:empreendimento_list' %}" class="hover:text-brand transition">Empreendimentos</a>
+  <span class="mx-2">/</span>
+  <span class="text-gray-700 font-medium">Status de unidade</span>
+</nav>
+{% endblock %}
+
+{% block inner_content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-semibold text-gray-800">Status de unidade</h1>
+  <a href="{% url 'empreendimentos:status_unidade_create' %}"
+     class="inline-flex items-center gap-2 bg-brand hover:bg-brand-dark text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+    </svg>
+    Novo status
+  </a>
+</div>
+
+<div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 border-b border-gray-200">
+      <tr>
+        <th class="text-left px-6 py-3 font-semibold text-gray-600">Nome</th>
+        <th class="px-6 py-3"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      {% for item in items %}
+      <tr class="hover:bg-gray-50 transition">
+        <td class="px-6 py-4 font-medium text-gray-800">{{ item.nome }}</td>
+        <td class="px-6 py-4 text-right">
+          <div class="flex items-center justify-end gap-3">
+            <a href="{% url 'empreendimentos:status_unidade_update' item.pk %}" class="text-gray-500 hover:text-brand text-xs font-medium">Editar</a>
+            <a href="{% url 'empreendimentos:status_unidade_delete' item.pk %}" class="text-red-500 hover:text-red-700 text-xs font-medium">Excluir</a>
+          </div>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="2" class="px-6 py-12 text-center text-gray-400">Nenhum status cadastrado.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

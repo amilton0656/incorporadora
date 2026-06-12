@@ -1,0 +1,127 @@
+{% extends 'base_intranet.html' %}
+{% load formatters %}
+{% block title %}Empresas{% endblock %}
+
+{% block breadcrumb %}
+<nav class="text-sm text-gray-400 mb-6">
+  <a href="{% url 'intranet:welcome' %}" class="hover:text-brand transition">Início</a>
+  <span class="mx-2">/</span>
+  <span class="text-gray-700 font-medium">Empresas</span>
+</nav>
+{% endblock %}
+
+{% block inner_content %}
+<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+  <div>
+    <h1 class="text-2xl font-semibold text-gray-800">Empresas</h1>
+    <p class="text-gray-400 text-sm mt-0.5">{{ paginator.count }} empresa{{ paginator.count|pluralize }} cadastrada{{ paginator.count|pluralize }}</p>
+  </div>
+  <div class="flex items-center gap-2">
+    {% if total_deletadas %}
+    <a href="{% url 'core:empresa_deleted_list' %}"
+       class="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2.5 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+      </svg>
+      Excluídas ({{ total_deletadas }})
+    </a>
+    {% endif %}
+    <a href="{% url 'core:empresa_lista_pdf' %}{% if q %}?q={{ q }}{% endif %}"
+       target="_blank"
+       class="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2.5 border border-gray-300 text-gray-600 hover:bg-gray-50 rounded-lg transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+      </svg>
+      Exportar PDF
+    </a>
+    <a href="{% url 'core:empresa_create' %}"
+       class="inline-flex items-center gap-2 bg-brand hover:bg-brand-dark text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+      </svg>
+      Nova empresa
+    </a>
+  </div>
+</div>
+
+<!-- Busca -->
+<form method="get" class="mb-6">
+  <div class="relative max-w-sm">
+    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/>
+    </svg>
+    <input type="text" name="q" value="{{ q }}"
+           placeholder="Buscar por nome ou CNPJ..."
+           class="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition">
+  </div>
+</form>
+
+<!-- Tabela -->
+<div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 border-b border-gray-200">
+        <tr>
+          <th class="text-left px-6 py-3 font-semibold text-gray-600">Nome</th>
+          <th class="text-left px-6 py-3 font-semibold text-gray-600 hidden md:table-cell">CNPJ</th>
+          <th class="text-left px-6 py-3 font-semibold text-gray-600 hidden lg:table-cell">Cidade / UF</th>
+          <th class="text-center px-6 py-3 font-semibold text-gray-600">Status</th>
+          <th class="px-6 py-3"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for empresa in empresas %}
+        <tr class="hover:bg-gray-50 transition">
+          <td class="px-6 py-4">
+            <div class="font-medium text-gray-800">{{ empresa.nome }}</div>
+            <div class="text-gray-400 text-xs">{{ empresa.razao_social }}</div>
+          </td>
+          <td class="px-6 py-4 text-gray-600 hidden md:table-cell">{{ empresa.cnpj|format_cnpj }}</td>
+          <td class="px-6 py-4 text-gray-600 hidden lg:table-cell">
+            {% if empresa.cidade %}{{ empresa.cidade }}{% if empresa.estado %} / {{ empresa.estado }}{% endif %}{% else %}—{% endif %}
+          </td>
+          <td class="px-6 py-4 text-center">
+            {% if empresa.ativo %}
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Ativa</span>
+            {% else %}
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">Inativa</span>
+            {% endif %}
+          </td>
+          <td class="px-6 py-4 text-right">
+            <div class="flex items-center justify-end gap-3">
+              <a href="{% url 'core:empresa_detail' empresa.pk %}"
+                 class="text-brand hover:underline text-xs font-medium">Ver</a>
+              <a href="{% url 'core:empresa_update' empresa.pk %}"
+                 class="text-gray-500 hover:text-brand text-xs font-medium">Editar</a>
+              <a href="{% url 'core:empresa_delete' empresa.pk %}"
+                 class="text-red-500 hover:text-red-700 text-xs font-medium">Excluir</a>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="px-6 py-12 text-center text-gray-400">
+            Nenhuma empresa encontrada.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Paginação -->
+{% if is_paginated %}
+<div class="flex items-center justify-center gap-2 mt-6 text-sm">
+  {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}"
+       class="px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition">Anterior</a>
+  {% endif %}
+  <span class="text-gray-500">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}"
+       class="px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition">Próxima</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

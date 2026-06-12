@@ -1,0 +1,85 @@
+{% load formatters %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Empresas — Listagem</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; font-size: 12px; color: #1f2937; padding: 40px; }
+    header { border-bottom: 3px solid #1B3A6B; padding-bottom: 16px; margin-bottom: 24px; }
+    header h1 { font-size: 20px; color: #1B3A6B; }
+    header p { color: #6b7280; font-size: 11px; margin-top: 2px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    thead th { background: #1B3A6B; color: #fff; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; padding: 8px 10px; text-align: left; }
+    tbody tr:nth-child(even) { background: #f9fafb; }
+    tbody td { padding: 8px 10px; border-bottom: 1px solid #e5e7eb; font-size: 11px; vertical-align: top; }
+    .nome { font-weight: 600; color: #1f2937; }
+    .razao { font-size: 10px; color: #6b7280; }
+    .badge { display: inline-block; padding: 1px 7px; border-radius: 20px; font-size: 9px; font-weight: 600; }
+    .badge-green { background: #dcfce7; color: #15803d; }
+    .badge-gray  { background: #f3f4f6; color: #6b7280; }
+    footer { margin-top: 32px; border-top: 1px solid #e5e7eb; padding-top: 10px; font-size: 10px; color: #9ca3af; display: flex; justify-content: space-between; }
+    @media print {
+      body { padding: 20px; }
+      @page { margin: 1.5cm; size: landscape; }
+      thead { display: table-header-group; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Empresas — Listagem</h1>
+  <p>
+    {{ empresas|length }} empresa{{ empresas|length|pluralize }} encontrada{{ empresas|length|pluralize }}
+    {% if q %} &mdash; filtro: &ldquo;{{ q }}&rdquo;{% endif %}
+  </p>
+</header>
+
+<table>
+  <thead>
+    <tr>
+      <th>Nome / Razão Social</th>
+      <th>CNPJ</th>
+      <th>Cidade / UF</th>
+      <th>Telefone</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for empresa in empresas %}
+    <tr>
+      <td>
+        <div class="nome">{{ empresa.nome }}</div>
+        <div class="razao">{{ empresa.razao_social }}</div>
+      </td>
+      <td>{{ empresa.cnpj|format_cnpj }}</td>
+      <td>
+        {% if empresa.cidade %}{{ empresa.cidade }}{% if empresa.estado %} / {{ empresa.estado }}{% endif %}{% else %}—{% endif %}
+      </td>
+      <td>{{ empresa.telefone|format_phone|default:'—' }}</td>
+      <td>
+        {% if empresa.ativo %}
+          <span class="badge badge-green">Ativa</span>
+        {% else %}
+          <span class="badge badge-gray">Inativa</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% empty %}
+    <tr>
+      <td colspan="5" style="text-align:center; color:#9ca3af; padding:24px;">Nenhuma empresa encontrada.</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<footer>
+  <span>Gerado em {% now "d/m/Y H:i" %}</span>
+  <span>Total: {{ empresas|length }} empresa{{ empresas|length|pluralize }}</span>
+</footer>
+
+<script>window.onload = function(){ window.print(); }</script>
+</body>
+</html>

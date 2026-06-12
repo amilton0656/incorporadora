@@ -1,0 +1,198 @@
+{% extends 'base_intranet.html' %}
+{% load static %}
+{% block title %}{% if object %}Editar empresa{% else %}Nova empresa{% endif %}{% endblock %}
+
+{% block breadcrumb %}
+<nav class="text-sm text-gray-400 mb-6">
+  <a href="{% url 'intranet:welcome' %}" class="hover:text-brand transition">Início</a>
+  <span class="mx-2">/</span>
+  <a href="{% url 'core:empresa_list' %}" class="hover:text-brand transition">Empresas</a>
+  <span class="mx-2">/</span>
+  <span class="text-gray-700 font-medium">{% if object %}{{ object.nome }}{% else %}Nova empresa{% endif %}</span>
+</nav>
+{% endblock %}
+
+{% block inner_content %}
+<div class="max-w-3xl">
+
+  <div class="mb-6">
+    <h1 class="text-2xl font-semibold text-gray-800">
+      {% if object %}Editar empresa{% else %}Nova empresa{% endif %}
+    </h1>
+    <p class="text-gray-400 text-sm mt-1">Preencha os dados cadastrais da empresa.</p>
+  </div>
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-6 text-sm">
+      {{ form.non_field_errors }}
+    </div>
+    {% endif %}
+
+    <!-- Identificação -->
+    <div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
+      <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-5">Identificação</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+
+        <!-- Nome fantasia -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.nome.id_for_label }}">
+            Nome fantasia <span class="text-red-500">*</span>
+          </label>
+          <input type="text" name="nome" id="{{ form.nome.id_for_label }}"
+                 value="{{ form.nome.value|default:'' }}"
+                 class="w-full px-4 py-2.5 border {% if form.nome.errors %}border-red-400{% else %}border-gray-300{% endif %} rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition">
+          {% if form.nome.errors %}<p class="text-red-500 text-xs mt-1">{{ form.nome.errors.0 }}</p>{% endif %}
+        </div>
+
+        <!-- Razão social -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.razao_social.id_for_label }}">
+            Razão social <span class="text-red-500">*</span>
+          </label>
+          <input type="text" name="razao_social" id="{{ form.razao_social.id_for_label }}"
+                 value="{{ form.razao_social.value|default:'' }}"
+                 class="w-full px-4 py-2.5 border {% if form.razao_social.errors %}border-red-400{% else %}border-gray-300{% endif %} rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition">
+          {% if form.razao_social.errors %}<p class="text-red-500 text-xs mt-1">{{ form.razao_social.errors.0 }}</p>{% endif %}
+        </div>
+
+        <!-- CNPJ -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.cnpj.id_for_label }}">
+            CNPJ <span class="text-red-500">*</span>
+          </label>
+          <input type="text" name="cnpj" id="{{ form.cnpj.id_for_label }}"
+                 value="{{ form.cnpj.value|default:'' }}"
+                 placeholder="00.000.000/0000-00"
+                 data-mask="cnpj"
+                 class="w-full px-4 py-2.5 border {% if form.cnpj.errors %}border-red-400{% else %}border-gray-300{% endif %} rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition">
+          {% if form.cnpj.errors %}<p class="text-red-500 text-xs mt-1">{{ form.cnpj.errors.0 }}</p>{% endif %}
+        </div>
+
+        <!-- E-mail -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.email.id_for_label }}">E-mail</label>
+          <input type="email" name="email" id="{{ form.email.id_for_label }}"
+                 value="{{ form.email.value|default:'' }}"
+                 class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition">
+        </div>
+
+        <!-- Telefone -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.telefone.id_for_label }}">Telefone</label>
+          <input type="text" name="telefone" id="{{ form.telefone.id_for_label }}"
+                 value="{{ form.telefone.value|default:'' }}"
+                 placeholder="(00) 00000-0000"
+                 data-mask="phone"
+                 class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition">
+        </div>
+
+        <!-- Site -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.site.id_for_label }}">Site</label>
+          <input type="url" name="site" id="{{ form.site.id_for_label }}"
+                 value="{{ form.site.value|default:'' }}"
+                 placeholder="https://"
+                 class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition">
+        </div>
+
+        <!-- Ativo -->
+        <div class="sm:col-span-2 flex items-center gap-3">
+          <input type="checkbox" name="ativo" id="{{ form.ativo.id_for_label }}"
+                 {% if form.ativo.value %}checked{% endif %}
+                 class="w-4 h-4 text-brand border-gray-300 rounded focus:ring-brand">
+          <label for="{{ form.ativo.id_for_label }}" class="text-sm font-medium text-gray-700">Empresa ativa</label>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Endereço -->
+    <div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
+      <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-5">Endereço</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-6 gap-5">
+
+        <div class="sm:col-span-2">
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.cep.id_for_label }}">CEP</label>
+          <input type="text" name="cep" id="{{ form.cep.id_for_label }}"
+                 value="{{ form.cep.value|default:'' }}" placeholder="00000-000"
+                 data-mask="cep"
+                 class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition">
+          <span id="{{ form.cep.id_for_label }}_status" class="text-xs mt-1 text-blue-500"></span>
+        </div>
+
+        <div class="sm:col-span-4">
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.logradouro.id_for_label }}">Logradouro</label>
+          <input type="text" name="logradouro" id="{{ form.logradouro.id_for_label }}"
+                 value="{{ form.logradouro.value|default:'' }}"
+                 class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition">
+        </div>
+
+        <div class="sm:col-span-1">
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.numero.id_for_label }}">Número</label>
+          <input type="text" name="numero" id="{{ form.numero.id_for_label }}"
+                 value="{{ form.numero.value|default:'' }}"
+                 class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition">
+        </div>
+
+        <div class="sm:col-span-2">
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.complemento.id_for_label }}">Complemento</label>
+          <input type="text" name="complemento" id="{{ form.complemento.id_for_label }}"
+                 value="{{ form.complemento.value|default:'' }}"
+                 class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition">
+        </div>
+
+        <div class="sm:col-span-3">
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.bairro.id_for_label }}">Bairro</label>
+          <input type="text" name="bairro" id="{{ form.bairro.id_for_label }}"
+                 value="{{ form.bairro.value|default:'' }}"
+                 class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition">
+        </div>
+
+        <div class="sm:col-span-4">
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.cidade.id_for_label }}">Cidade</label>
+          <input type="text" name="cidade" id="{{ form.cidade.id_for_label }}"
+                 value="{{ form.cidade.value|default:'' }}"
+                 class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition">
+        </div>
+
+        <div class="sm:col-span-2">
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.estado.id_for_label }}">Estado (UF)</label>
+          <input type="text" name="estado" id="{{ form.estado.id_for_label }}"
+                 value="{{ form.estado.value|default:'' }}" maxlength="2" placeholder="SP"
+                 class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition uppercase">
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Ações -->
+    <div class="flex flex-col sm:flex-row items-center gap-3">
+      <button type="submit"
+              class="w-full sm:w-auto bg-brand hover:bg-brand-dark text-white font-semibold px-6 py-2.5 rounded-lg transition text-sm">
+        {% if object %}Salvar alterações{% else %}Cadastrar empresa{% endif %}
+      </button>
+      <a href="{% if object %}{% url 'core:empresa_detail' object.pk %}{% else %}{% url 'core:empresa_list' %}{% endif %}"
+         class="w-full sm:w-auto text-center text-gray-500 hover:text-gray-700 font-medium px-6 py-2.5 rounded-lg border border-gray-300 hover:bg-gray-50 transition text-sm">
+        Cancelar
+      </a>
+    </div>
+
+  </form>
+</div>
+
+<script src="{% static 'js/masks.js' %}"></script>
+<script src="{% static 'js/cep.js' %}"></script>
+<script>
+  initCepLookup('{{ form.cep.id_for_label }}', {
+    logradouro:  '{{ form.logradouro.id_for_label }}',
+    numero:      '{{ form.numero.id_for_label }}',
+    complemento: '{{ form.complemento.id_for_label }}',
+    bairro:      '{{ form.bairro.id_for_label }}',
+    cidade:      '{{ form.cidade.id_for_label }}',
+    estado:      '{{ form.estado.id_for_label }}',
+  });
+</script>
+{% endblock %}

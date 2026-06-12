@@ -1,0 +1,166 @@
+{% extends 'base_intranet.html' %}
+{% load static %}
+{% block title %}{% if object %}Editar unidade{% else %}Nova unidade{% endif %}{% endblock %}
+
+{% block breadcrumb %}
+<nav class="text-sm text-gray-400 mb-6">
+  <a href="{% url 'intranet:welcome' %}" class="hover:text-brand transition">Início</a>
+  <span class="mx-2">/</span>
+  <a href="{% url 'empreendimentos:empreendimento_list' %}" class="hover:text-brand transition">Empreendimentos</a>
+  <span class="mx-2">/</span>
+  <a href="{% url 'empreendimentos:empreendimento_detail' empreendimento.pk %}" class="hover:text-brand transition">{{ empreendimento.nome }}</a>
+  <span class="mx-2">/</span>
+  <a href="{% url 'empreendimentos:bloco_detail' empreendimento.pk bloco.pk %}" class="hover:text-brand transition">{{ bloco.nome }}</a>
+  <span class="mx-2">/</span>
+  <span class="text-gray-700 font-medium">{% if object %}Editar unidade{% else %}Nova unidade{% endif %}</span>
+</nav>
+{% endblock %}
+
+{% block inner_content %}
+<div class="max-w-3xl">
+  <div class="mb-6">
+    <h1 class="text-2xl font-semibold text-gray-800">{% if object %}Editar unidade{% else %}Nova unidade{% endif %}</h1>
+    <p class="text-gray-400 text-sm mt-0.5">{{ empreendimento.nome }} / {{ bloco.nome }}</p>
+  </div>
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-6 text-sm">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <!-- Identificação -->
+    <div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
+      <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-5">Identificação</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.numero.id_for_label }}">
+            Número <span class="text-red-500">*</span>
+          </label>
+          {{ form.numero }}
+          {% if form.numero.errors %}<p class="text-red-500 text-xs mt-1">{{ form.numero.errors.0 }}</p>{% endif %}
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.ordem.id_for_label }}">Ordem</label>
+          {{ form.ordem }}
+          {% if form.ordem.errors %}<p class="text-red-500 text-xs mt-1">{{ form.ordem.errors.0 }}</p>{% endif %}
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.status.id_for_label }}">Status</label>
+          {{ form.status }}
+          {% if form.status.errors %}<p class="text-red-500 text-xs mt-1">{{ form.status.errors.0 }}</p>{% endif %}
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.tipo.id_for_label }}">Tipo</label>
+          {{ form.tipo }}
+          {% if form.tipo.errors %}<p class="text-red-500 text-xs mt-1">{{ form.tipo.errors.0 }}</p>{% endif %}
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.tipologia.id_for_label }}">
+            Tipologia <span class="text-gray-400 font-normal text-xs">(max 20)</span>
+          </label>
+          {{ form.tipologia }}
+          {% if form.tipologia.errors %}<p class="text-red-500 text-xs mt-1">{{ form.tipologia.errors.0 }}</p>{% endif %}
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.localizacao.id_for_label }}">
+            Localização <span class="text-gray-400 font-normal text-xs">(max 30)</span>
+          </label>
+          {{ form.localizacao }}
+          {% if form.localizacao.errors %}<p class="text-red-500 text-xs mt-1">{{ form.localizacao.errors.0 }}</p>{% endif %}
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Áreas -->
+    <div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
+      <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-5">Áreas (m²)</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.area_privativa.id_for_label }}">Área privativa</label>
+          {{ form.area_privativa }}
+          {% if form.area_privativa.errors %}<p class="text-red-500 text-xs mt-1">{{ form.area_privativa.errors.0 }}</p>{% endif %}
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.area_privativa_acessoria.id_for_label }}">Área privativa acessória</label>
+          {{ form.area_privativa_acessoria }}
+          {% if form.area_privativa_acessoria.errors %}<p class="text-red-500 text-xs mt-1">{{ form.area_privativa_acessoria.errors.0 }}</p>{% endif %}
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.area_comum.id_for_label }}">Área comum</label>
+          {{ form.area_comum }}
+          {% if form.area_comum.errors %}<p class="text-red-500 text-xs mt-1">{{ form.area_comum.errors.0 }}</p>{% endif %}
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.fracao_ideal.id_for_label }}">Fração ideal</label>
+          {{ form.fracao_ideal }}
+          {% if form.fracao_ideal.errors %}<p class="text-red-500 text-xs mt-1">{{ form.fracao_ideal.errors.0 }}</p>{% endif %}
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Comercial -->
+    <div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
+      <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-5">Informações comerciais</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+
+        <div class="sm:col-span-2 sm:max-w-xs">
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.valor_tabela.id_for_label }}">Valor tabela (R$)</label>
+          {{ form.valor_tabela }}
+          {% if form.valor_tabela.errors %}<p class="text-red-500 text-xs mt-1">{{ form.valor_tabela.errors.0 }}</p>{% endif %}
+        </div>
+
+        <div class="sm:col-span-2">
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.descricao_1.id_for_label }}">
+            Descrição 1 <span class="text-gray-400 font-normal text-xs">(max 70)</span>
+          </label>
+          {{ form.descricao_1 }}
+          {% if form.descricao_1.errors %}<p class="text-red-500 text-xs mt-1">{{ form.descricao_1.errors.0 }}</p>{% endif %}
+        </div>
+
+        <div class="sm:col-span-2">
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.descricao_2.id_for_label }}">
+            Descrição 2 <span class="text-gray-400 font-normal text-xs">(max 70)</span>
+          </label>
+          {{ form.descricao_2 }}
+          {% if form.descricao_2.errors %}<p class="text-red-500 text-xs mt-1">{{ form.descricao_2.errors.0 }}</p>{% endif %}
+        </div>
+
+        <div class="sm:col-span-2">
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.descricao_3.id_for_label }}">
+            Descrição 3 <span class="text-gray-400 font-normal text-xs">(max 70)</span>
+          </label>
+          {{ form.descricao_3 }}
+          {% if form.descricao_3.errors %}<p class="text-red-500 text-xs mt-1">{{ form.descricao_3.errors.0 }}</p>{% endif %}
+        </div>
+
+      </div>
+    </div>
+
+    <div class="flex flex-col sm:flex-row items-center gap-3">
+      <button type="submit" class="w-full sm:w-auto bg-brand hover:bg-brand-dark text-white font-semibold px-6 py-2.5 rounded-lg transition text-sm">
+        {% if object %}Salvar alterações{% else %}Criar unidade{% endif %}
+      </button>
+      <a href="{% url 'empreendimentos:bloco_detail' empreendimento.pk bloco.pk %}"
+         class="w-full sm:w-auto text-center text-gray-500 hover:text-gray-700 font-medium px-6 py-2.5 rounded-lg border border-gray-300 hover:bg-gray-50 transition text-sm">
+        Cancelar
+      </a>
+    </div>
+  </form>
+</div>
+
+<script src="{% static 'js/masks.js' %}"></script>
+{% endblock %}
