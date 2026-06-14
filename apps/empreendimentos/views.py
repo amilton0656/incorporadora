@@ -11,9 +11,32 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DetailView, ListView, UpdateView, View
 
+from django.db.models import Q
+
 from apps.core.mixins import EmpresaQuerysetMixin
 from apps.core.models import Empresa
-from .models import Bloco, Empreendimento, StatusUnidade, TipoUnidade, Unidade
+from .models import Bloco, DesignacaoUnidade, Empreendimento, StatusUnidade, TipoUnidade, Unidade
+
+_TIPO_DESIGNACAO_LABEL = {
+    'garagem carro': DesignacaoUnidade.GARAGEM_CARRO,
+    'garagem moto': DesignacaoUnidade.GARAGEM_MOTO,
+    'hobby box': DesignacaoUnidade.HOBBY_BOX,
+}
+
+_TIPO_DESIGNACAO_PREFIXO = {
+    'HB': DesignacaoUnidade.HOBBY_BOX,
+    'M': DesignacaoUnidade.GARAGEM_MOTO,
+    'G': DesignacaoUnidade.GARAGEM_CARRO,
+}
+
+
+def _inferir_tipo_designacao(numero):
+    upper = numero.upper()
+    for prefixo, tipo in _TIPO_DESIGNACAO_PREFIXO.items():
+        if upper.startswith(prefixo):
+            return tipo
+    return None
+
 
 _CAMPOS_IGNORADOS = {
     'deletado_em', 'deletado_por', 'atualizado_em',
@@ -348,7 +371,7 @@ class BlocoDeleteView(LoginRequiredMixin, View):
 # ─── Unidade ───────────────────────────────────────────────────────────────────
 
 _UNIDADE_FIELDS = [
-    'numero', 'ordem', 'adicionais', 'status', 'tipo', 'tipologia', 'localizacao',
+    'numero', 'nome_exibicao', 'ordem', 'adicionais', 'status', 'tipo', 'tipologia', 'localizacao',
     'area_privativa', 'area_privativa_acessoria', 'area_comum',
     'fracao_ideal', 'valor_tabela',
     'descricao_1', 'descricao_2', 'descricao_3',
@@ -373,6 +396,25 @@ class UnidadeDetailView(LoginRequiredMixin, DetailView):
         ctx['bloco'] = self.object.bloco
         ctx['empreendimento'] = self.object.bloco.empreendimento
         ctx['history_entries'] = _build_history(self.object)
+        ctx['complementares'] = (
+            self.object.complementares
+            .select_related('status', 'tipo', 'bloco')
+            .prefetch_related('designacoes')
+            .all()
+        )
+        ctx['designacoes'] = self.object.designacoes.all()
+        ctx['unidades_vinculaveis'] = (
+            Unidade.objects
+            .filter(
+                bloco__empreendimento=self.object.bloco.empreendimento,
+                unidade_principal__isnull=True,
+            )
+            .filter(Q(tipo__isnull=True) | Q(tipo__categoria=TipoUnidade.COMPLEMENTAR))
+            .exclude(pk=self.object.pk)
+            .select_related('bloco', 'tipo')
+            .order_by('bloco__nome', 'ordem', 'numero')
+        )
+        ctx['tipos_designacao'] = DesignacaoUnidade.TIPO_CHOICES
         return ctx
 
 
@@ -472,6 +514,75 @@ def unidade_pdf(request, pk, bloco_pk, unidade_pk):
     return render(request, 'empreendimentos/unidade_pdf.html', {'unidade': unidade})
 
 
+# ─── Vínculos e Designações ────────────────────────────────────────────────────
+
+def _get_unidade(pk, bloco_pk, unidade_pk):
+    return get_object_or_404(
+        Unidade.objects.select_related('bloco__empreendimento'),
+        pk=unidade_pk, bloco_id=bloco_pk, bloco__empreendimento_id=pk,
+    )
+
+
+@login_required
+def vincular_complementar(request, pk, bloco_pk, unidade_pk):
+    principal = _get_unidade(pk, bloco_pk, unidade_pk)
+    if request.method == 'POST':
+        comp_pk = request.POST.get('complementar_id')
+        complementar = get_object_or_404(
+            Unidade.objects,
+            pk=comp_pk,
+            bloco__empreendimento_id=pk,
+            unidade_principal__isnull=True,
+        )
+        complementar.unidade_principal = principal
+        complementar.save()
+        messages.success(request, f'Unidade "{complementar.numero}" vinculada.')
+    return redirect('empreendimentos:unidade_detail', pk=pk, bloco_pk=bloco_pk, unidade_pk=unidade_pk)
+
+
+@login_required
+def desvincular_complementar(request, pk, bloco_pk, unidade_pk, complementar_pk):
+    if request.method == 'POST':
+        complementar = get_object_or_404(
+            Unidade.objects,
+            pk=complementar_pk,
+            unidade_principal_id=unidade_pk,
+        )
+        complementar.unidade_principal = None
+        complementar.save()
+        messages.success(request, f'Unidade "{complementar.numero}" desvinculada.')
+    return redirect('empreendimentos:unidade_detail', pk=pk, bloco_pk=bloco_pk, unidade_pk=unidade_pk)
+
+
+@login_required
+def designacao_create(request, pk, bloco_pk, unidade_pk):
+    unidade = _get_unidade(pk, bloco_pk, unidade_pk)
+    if request.method == 'POST':
+        tipo = request.POST.get('tipo', '').strip()
+        nome = request.POST.get('nome', '').strip().upper()
+        tipos_validos = dict(DesignacaoUnidade.TIPO_CHOICES)
+        if tipo not in tipos_validos:
+            messages.error(request, 'Tipo inválido.')
+        elif not nome:
+            messages.error(request, 'Informe o nome da designação.')
+        elif DesignacaoUnidade.objects.filter(unidade=unidade, nome=nome).exists():
+            messages.error(request, f'A designação "{nome}" já existe nesta unidade.')
+        else:
+            DesignacaoUnidade.objects.create(unidade=unidade, tipo=tipo, nome=nome)
+            messages.success(request, f'Designação "{nome}" adicionada.')
+    return redirect('empreendimentos:unidade_detail', pk=pk, bloco_pk=bloco_pk, unidade_pk=unidade_pk)
+
+
+@login_required
+def designacao_delete(request, pk, bloco_pk, unidade_pk, des_pk):
+    if request.method == 'POST':
+        des = get_object_or_404(DesignacaoUnidade, pk=des_pk, unidade_id=unidade_pk)
+        nome = des.nome
+        des.delete()
+        messages.success(request, f'Designação "{nome}" removida.')
+    return redirect('empreendimentos:unidade_detail', pk=pk, bloco_pk=bloco_pk, unidade_pk=unidade_pk)
+
+
 # ─── Importação CSV ────────────────────────────────────────────────────────────
 
 def _parse_decimal(val):
@@ -497,97 +608,162 @@ def importar_unidades(request, pk):
         })
 
     arquivo = request.FILES.get('arquivo')
+    arquivo_vinculos = request.FILES.get('arquivo_vinculos')
     modo = request.POST.get('modo', 'atualizar')
 
-    if not arquivo:
-        messages.error(request, 'Selecione um arquivo CSV.')
+    if not arquivo and not arquivo_vinculos:
+        messages.error(request, 'Selecione ao menos um arquivo CSV.')
         return redirect('empreendimentos:importar_unidades', pk=pk)
 
-    # Tenta UTF-8 com BOM; se falhar, tenta latin-1
-    raw = arquivo.read()
-    for enc in ('utf-8-sig', 'latin-1'):
-        try:
-            conteudo = raw.decode(enc)
-            break
-        except UnicodeDecodeError:
-            continue
-    else:
-        messages.error(request, 'Não foi possível decodificar o arquivo. Use UTF-8 ou Latin-1.')
-        return redirect('empreendimentos:importar_unidades', pk=pk)
+    if arquivo:
+        # Tenta UTF-8 com BOM; se falhar, tenta latin-1
+        raw = arquivo.read()
+        for enc in ('utf-8-sig', 'latin-1'):
+            try:
+                conteudo = raw.decode(enc)
+                break
+            except UnicodeDecodeError:
+                continue
+        else:
+            messages.error(request, 'CSV de unidades: não foi possível decodificar o arquivo. Use UTF-8 ou Latin-1.')
+            return redirect('empreendimentos:importar_unidades', pk=pk)
 
-    reader = csv.DictReader(io.StringIO(conteudo), delimiter=';')
+    if arquivo:
+        reader = csv.DictReader(io.StringIO(conteudo), delimiter=';')
 
-    if modo == 'apagar_tudo':
-        for bloco in empreendimento.blocos.all():
-            for unidade in bloco.unidades.all():
-                unidade.soft_delete(user=request.user)
+        if modo == 'apagar_tudo':
+            for bloco in empreendimento.blocos.all():
+                for unidade in bloco.unidades.all():
+                    unidade.soft_delete(user=request.user)
 
-    criados = atualizados = 0
-    erros = []
+        criados = atualizados = 0
+        erros = []
 
-    for i, row in enumerate(reader, start=2):
-        try:
-            bloco_nome = row['Bloco'].strip()
-            bloco, _ = Bloco.objects.get_or_create(
-                empreendimento=empreendimento,
-                nome=bloco_nome,
-                defaults={'ordem': 0},
-            )
+        for i, row in enumerate(reader, start=2):
+            try:
+                bloco_nome = row['Bloco'].strip()
+                bloco, _ = Bloco.objects.get_or_create(
+                    empreendimento=empreendimento,
+                    nome=bloco_nome,
+                    defaults={'ordem': 0},
+                )
 
-            status_nome = row['status'].strip()
-            status = None
-            if status_nome:
-                status, _ = StatusUnidade.objects.get_or_create(empresa=empresa, nome=status_nome)
+                status_nome = row['status'].strip()
+                status = None
+                if status_nome:
+                    status, _ = StatusUnidade.objects.get_or_create(empresa=empresa, nome=status_nome)
 
-            tipo_nome = row['tipo'].strip()
-            tipo = None
-            if tipo_nome:
-                tipo, _ = TipoUnidade.objects.get_or_create(empresa=empresa, nome=tipo_nome)
+                tipo_nome = row['tipo'].strip()
+                tipo = None
+                if tipo_nome:
+                    tipo, _ = TipoUnidade.objects.get_or_create(empresa=empresa, nome=tipo_nome)
 
-            dados = {
-                'ordem':                   int(row['ordem'].strip()) if row['ordem'].strip().isdigit() else 0,
-                'adicionais':              row['adicionais'].strip(),
-                'status':                  status,
-                'tipo':                    tipo,
-                'tipologia':               row['tipologia'].strip(),
-                'localizacao':             row['localizacao'].strip(),
-                'area_privativa':          _parse_decimal(row['area_privativa']),
-                'area_privativa_acessoria': _parse_decimal(row['area_privativa_acessoria']),
-                'area_comum':              _parse_decimal(row['area_comum']),
-                'fracao_ideal':            _parse_decimal(row['fracao_ideal']),
-                'valor_tabela':            _parse_decimal(row['valor_tabela']),
-                'descricao_1':             row['descricao1'].strip(),
-                'descricao_2':             row['descricao2'].strip(),
-                'descricao_3':             row['descricao3'].strip(),
-            }
-            numero = row['numero'].strip()
+                dados = {
+                    'ordem':                   int(row['ordem'].strip()) if row['ordem'].strip().isdigit() else 0,
+                    'adicionais':              row['adicionais'].strip(),
+                    'status':                  status,
+                    'tipo':                    tipo,
+                    'tipologia':               row['tipologia'].strip(),
+                    'localizacao':             row['localizacao'].strip(),
+                    'area_privativa':          _parse_decimal(row['area_privativa']),
+                    'area_privativa_acessoria': _parse_decimal(row['area_privativa_acessoria']),
+                    'area_comum':              _parse_decimal(row['area_comum']),
+                    'fracao_ideal':            _parse_decimal(row['fracao_ideal']),
+                    'valor_tabela':            _parse_decimal(row['valor_tabela']),
+                    'descricao_1':             row['descricao1'].strip(),
+                    'descricao_2':             row['descricao2'].strip(),
+                    'descricao_3':             row['descricao3'].strip(),
+                }
+                numero = row['numero'].strip()
 
-            if modo == 'apagar_tudo':
-                Unidade.objects.create(bloco=bloco, numero=numero, **dados)
-                criados += 1
-            else:
-                qs = Unidade.objects.filter(bloco=bloco, numero=numero)
-                if qs.exists():
-                    qs.update(**dados)
-                    atualizados += 1
-                else:
+                if modo == 'apagar_tudo':
                     Unidade.objects.create(bloco=bloco, numero=numero, **dados)
                     criados += 1
+                else:
+                    qs = Unidade.objects.filter(bloco=bloco, numero=numero)
+                    if qs.exists():
+                        qs.update(**dados)
+                        atualizados += 1
+                    else:
+                        Unidade.objects.create(bloco=bloco, numero=numero, **dados)
+                        criados += 1
 
-        except Exception as e:
-            erros.append(f'Linha {i} ({row.get("numero", "?")}): {e}')
+            except Exception as e:
+                erros.append(f'Linha {i} ({row.get("numero", "?")}): {e}')
 
-    partes = []
-    if criados:
-        partes.append(f'{criados} criada{"s" if criados > 1 else ""}')
-    if atualizados:
-        partes.append(f'{atualizados} atualizada{"s" if atualizados > 1 else ""}')
-    messages.success(request, f'Importação concluída: {", ".join(partes) or "nenhuma alteração"}.')
+        partes = []
+        if criados:
+            partes.append(f'{criados} criada{"s" if criados > 1 else ""}')
+        if atualizados:
+            partes.append(f'{atualizados} atualizada{"s" if atualizados > 1 else ""}')
+        messages.success(request, f'Importação concluída: {", ".join(partes) or "nenhuma alteração"}.')
 
-    for erro in erros[:10]:
-        messages.warning(request, erro)
-    if len(erros) > 10:
-        messages.warning(request, f'... e mais {len(erros) - 10} erros omitidos.')
+        for erro in erros[:10]:
+            messages.warning(request, erro)
+        if len(erros) > 10:
+            messages.warning(request, f'... e mais {len(erros) - 10} erros omitidos.')
+
+    if arquivo_vinculos:
+        raw_v = arquivo_vinculos.read()
+        for enc in ('utf-8-sig', 'latin-1'):
+            try:
+                conteudo_v = raw_v.decode(enc)
+                break
+            except UnicodeDecodeError:
+                continue
+        else:
+            messages.error(request, 'CSV de vínculos: não foi possível decodificar o arquivo.')
+            return redirect('empreendimentos:empreendimento_detail', pk=pk)
+
+        processados_v = erros_v = 0
+        for i, row in enumerate(csv.DictReader(io.StringIO(conteudo_v), delimiter=';'), start=2):
+            tipo_v = row.get('tipo', '').strip()
+            num_princ = row.get('principal', '').strip()
+            num_comp = row.get('complementar', '').strip()
+            desig_label = row.get('designacao_tipo', '').strip()
+
+            if tipo_v not in ('1', '2'):
+                messages.warning(request, f'Vínculos linha {i}: tipo inválido "{tipo_v}". Use 1 ou 2.')
+                erros_v += 1
+                continue
+
+            try:
+                principal = Unidade.objects.get(
+                    bloco__empreendimento=empreendimento,
+                    numero=num_princ,
+                )
+                if tipo_v == '1':
+                    complementar = Unidade.objects.get(
+                        bloco__empreendimento=empreendimento,
+                        numero=num_comp,
+                    )
+                    complementar.unidade_principal = principal
+                    complementar.tipo_vinculo = Unidade.MATRICULA_PROPRIA
+                    complementar.save(update_fields=['unidade_principal', 'tipo_vinculo'])
+                else:
+                    if desig_label:
+                        desig_tipo = _TIPO_DESIGNACAO_LABEL.get(desig_label.lower())
+                        if not desig_tipo:
+                            messages.warning(request, f'Vínculos linha {i}: designacao_tipo inválido "{desig_label}".')
+                            erros_v += 1
+                            continue
+                    else:
+                        desig_tipo = _inferir_tipo_designacao(num_comp)
+                        if not desig_tipo:
+                            messages.warning(request, f'Vínculos linha {i}: não foi possível inferir tipo para "{num_comp}".')
+                            erros_v += 1
+                            continue
+                    DesignacaoUnidade.objects.get_or_create(
+                        unidade=principal,
+                        nome=num_comp,
+                        defaults={'tipo': desig_tipo},
+                    )
+                processados_v += 1
+            except Unidade.DoesNotExist:
+                messages.warning(request, f'Vínculos linha {i}: unidade "{num_princ}" ou "{num_comp}" não encontrada.')
+                erros_v += 1
+
+        messages.success(request, f'Vínculos: {processados_v} processado(s), {erros_v} erro(s).')
 
     return redirect('empreendimentos:empreendimento_detail', pk=pk)
 
@@ -668,7 +844,7 @@ class TipoUnidadeListView(LoginRequiredMixin, EmpresaQuerysetMixin, ListView):
 class TipoUnidadeCreateView(LoginRequiredMixin, CreateView):
     model = TipoUnidade
     template_name = 'empreendimentos/config_form.html'
-    fields = ['nome']
+    fields = ['nome', 'categoria']
     success_url = reverse_lazy('empreendimentos:tipo_unidade_list')
 
     def get_form(self, form_class=None):
@@ -689,7 +865,7 @@ class TipoUnidadeCreateView(LoginRequiredMixin, CreateView):
 class TipoUnidadeUpdateView(LoginRequiredMixin, UpdateView):
     model = TipoUnidade
     template_name = 'empreendimentos/config_form.html'
-    fields = ['nome']
+    fields = ['nome', 'categoria']
     success_url = reverse_lazy('empreendimentos:tipo_unidade_list')
 
     def get_form(self, form_class=None):

@@ -22,8 +22,16 @@ class StatusUnidade(SoftDeleteModel):
 
 
 class TipoUnidade(SoftDeleteModel):
+    PRINCIPAL = 'principal'
+    COMPLEMENTAR = 'complementar'
+    CATEGORIA_CHOICES = [
+        (PRINCIPAL, 'Principal'),
+        (COMPLEMENTAR, 'Complementar'),
+    ]
+
     empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name='tipos_unidade', verbose_name='Empresa')
     nome = models.CharField('Nome', max_length=50)
+    categoria = models.CharField('Categoria', max_length=12, choices=CATEGORIA_CHOICES, default=PRINCIPAL)
     criado_em = models.DateTimeField(auto_now_add=True)
 
     history = HistoricalRecords()
@@ -31,7 +39,7 @@ class TipoUnidade(SoftDeleteModel):
     class Meta:
         verbose_name = 'Tipo de unidade'
         verbose_name_plural = 'Tipos de unidade'
-        ordering = ['nome']
+        ordering = ['categoria', 'nome']
         unique_together = [('empresa', 'nome')]
 
     def __str__(self):
@@ -99,8 +107,28 @@ class Bloco(SoftDeleteModel):
 
 
 class Unidade(SoftDeleteModel):
+    MESMA_MATRICULA = 'mesma_matricula'
+    MATRICULA_PROPRIA = 'matricula_propria'
+    TIPO_VINCULO_CHOICES = [
+        (MESMA_MATRICULA, 'Mesma matrícula'),
+        (MATRICULA_PROPRIA, 'Matrícula própria'),
+    ]
+
     bloco = models.ForeignKey(Bloco, on_delete=models.CASCADE, related_name='unidades', verbose_name='Bloco')
+    unidade_principal = models.ForeignKey(
+        'self',
+        null=True, blank=True,
+        on_delete=models.PROTECT,
+        related_name='complementares',
+        verbose_name='Unidade principal',
+    )
+    tipo_vinculo = models.CharField(
+        'Tipo de vínculo', max_length=17,
+        choices=TIPO_VINCULO_CHOICES,
+        blank=True,
+    )
     numero = models.CharField('Número', max_length=15)
+    nome_exibicao = models.CharField('Nome de exibição', max_length=50, blank=True)
     ordem = models.IntegerField('Ordem', default=0)
     adicionais = models.CharField('Adicionais', max_length=100, blank=True)
     status = models.ForeignKey(
@@ -139,3 +167,40 @@ class Unidade(SoftDeleteModel):
 
     def __str__(self):
         return f'{self.bloco.empreendimento.nome} / {self.bloco.nome} — {self.numero}'
+
+    @property
+    def display_numero(self):
+        if self.nome_exibicao:
+            return self.nome_exibicao
+        nomes = [self.numero] + list(self.designacoes.values_list('nome', flat=True))
+        return ' / '.join(nomes)
+
+
+class DesignacaoUnidade(models.Model):
+    GARAGEM_CARRO = 'garagem_carro'
+    GARAGEM_MOTO = 'garagem_moto'
+    HOBBY_BOX = 'hobby_box'
+
+    TIPO_CHOICES = [
+        (GARAGEM_CARRO, 'Garagem carro'),
+        (GARAGEM_MOTO, 'Garagem moto'),
+        (HOBBY_BOX, 'Hobby box'),
+    ]
+
+    unidade = models.ForeignKey(
+        Unidade, on_delete=models.CASCADE,
+        related_name='designacoes', verbose_name='Unidade',
+    )
+    tipo = models.CharField('Tipo', max_length=15, choices=TIPO_CHOICES)
+    nome = models.CharField('Nome', max_length=20)
+
+    history = HistoricalRecords()
+
+    class Meta:
+        verbose_name = 'Designação'
+        verbose_name_plural = 'Designações'
+        ordering = ['tipo', 'nome']
+        unique_together = [('unidade', 'nome')]
+
+    def __str__(self):
+        return f'{self.get_tipo_display()} — {self.nome}'

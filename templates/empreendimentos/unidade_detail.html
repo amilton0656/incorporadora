@@ -59,12 +59,22 @@
   <div class="bg-white border border-gray-200 rounded-xl p-6">
     <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-5">Identificação</h2>
     <dl class="space-y-4">
-      {% include 'core/_detail_row.html' with label='Número' value=unidade.numero %}
+      {% include 'core/_detail_row.html' with label='Número' value=unidade.display_numero %}
       {% include 'core/_detail_row.html' with label='Ordem' value=unidade.ordem %}
       {% include 'core/_detail_row.html' with label='Status' value=unidade.status %}
       {% include 'core/_detail_row.html' with label='Tipo' value=unidade.tipo %}
       {% include 'core/_detail_row.html' with label='Tipologia' value=unidade.tipologia %}
       {% include 'core/_detail_row.html' with label='Localização' value=unidade.localizacao %}
+      {% if unidade.unidade_principal %}
+      <div class="flex items-start gap-2 py-1">
+        <span class="text-sm text-gray-500 w-40 shrink-0">Unidade principal</span>
+        <a href="{% url 'empreendimentos:unidade_detail' empreendimento.pk unidade.unidade_principal.bloco.pk unidade.unidade_principal.pk %}"
+           class="text-sm font-medium text-brand hover:underline">
+          {{ unidade.unidade_principal.numero }}
+          <span class="text-gray-400 font-normal">({{ unidade.unidade_principal.bloco.nome }})</span>
+        </a>
+      </div>
+      {% endif %}
     </dl>
   </div>
 
@@ -91,6 +101,105 @@
     {% include 'core/_detail_row.html' with label='Descrição 3' value=unidade.descricao_3 %}
   </dl>
 </div>
+
+<!-- Designações da matrícula -->
+{% if designacoes %}
+<div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
+  <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">Unidades vinculadas à mesma matrícula</h2>
+  <div class="divide-y divide-gray-100">
+    {% for des in designacoes %}
+    <div class="flex items-center justify-between py-3">
+      <div class="flex items-center gap-3">
+        <span class="text-sm font-medium text-gray-800">{{ des.nome }}</span>
+        <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{{ des.get_tipo_display }}</span>
+      </div>
+      <form method="post" action="{% url 'empreendimentos:designacao_delete' empreendimento.pk bloco.pk unidade.pk des.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="text-xs text-red-500 hover:text-red-700 transition">Remover</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Adicionar designação -->
+<div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
+  <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">Adicionar complemento de mesma matrícula</h2>
+  <form method="post" action="{% url 'empreendimentos:designacao_create' empreendimento.pk bloco.pk unidade.pk %}" class="flex flex-wrap gap-3 items-end">
+    {% csrf_token %}
+    <div>
+      <label class="block text-xs font-medium text-gray-600 mb-1">Tipo</label>
+      <select name="tipo" class="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand">
+        {% for value, label in tipos_designacao %}
+        <option value="{{ value }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-gray-600 mb-1">Nome</label>
+      <input type="text" name="nome" placeholder="ex.: HB10" maxlength="20"
+             class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand w-32">
+    </div>
+    <button type="submit" class="px-4 py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition">
+      Adicionar
+    </button>
+  </form>
+</div>
+
+<!-- Vincular unidade complementar (só aparece para unidades principais) -->
+{% if unidade.tipo.categoria == 'principal' or not unidade.tipo %}
+<div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">Unidades complementares vinculadas</h2>
+  </div>
+
+  {% if complementares %}
+  <div class="divide-y divide-gray-100 mb-4">
+    {% for comp in complementares %}
+    <div class="flex items-center justify-between py-3">
+      <div class="flex items-center gap-3">
+        <a href="{% url 'empreendimentos:unidade_detail' empreendimento.pk comp.bloco.pk comp.pk %}"
+           class="text-sm font-medium text-brand hover:underline">{{ comp.display_numero }}</a>
+        <span class="text-xs text-gray-400">{{ comp.bloco.nome }}</span>
+        {% if comp.tipo %}<span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{{ comp.tipo }}</span>{% endif %}
+        {% if comp.status %}<span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{{ comp.status }}</span>{% endif %}
+        {% for des in comp.designacoes.all %}
+        <span class="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded">{{ des.get_tipo_display }}: {{ des.nome }}</span>
+        {% endfor %}
+      </div>
+      <div class="flex items-center gap-4">
+        {% if comp.area_privativa %}<span class="text-sm text-gray-500">{{ comp.area_privativa }} m²</span>{% endif %}
+        <form method="post" action="{% url 'empreendimentos:desvincular_complementar' empreendimento.pk bloco.pk unidade.pk comp.pk %}">
+          {% csrf_token %}
+          <button type="submit" class="text-xs text-red-500 hover:text-red-700 transition">Desvincular</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if unidades_vinculaveis %}
+  <form method="post" action="{% url 'empreendimentos:vincular_complementar' empreendimento.pk bloco.pk unidade.pk %}" class="flex gap-3 items-end">
+    {% csrf_token %}
+    <div class="flex-1">
+      <label class="block text-xs font-medium text-gray-600 mb-1">Vincular unidade complementar</label>
+      <select name="complementar_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand">
+        {% for u in unidades_vinculaveis %}
+        <option value="{{ u.pk }}">{{ u.numero }} — {{ u.bloco.nome }}{% if u.tipo %} ({{ u.tipo }}){% endif %}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="px-4 py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition whitespace-nowrap">
+      Vincular
+    </button>
+  </form>
+  {% else %}
+  <p class="text-sm text-gray-400">Nenhuma unidade complementar disponível para vincular.</p>
+  {% endif %}
+</div>
+{% endif %}
 
 <p class="text-xs text-gray-300 mb-8">
   Cadastrada em {{ unidade.criado_em|date:'d/m/Y' }} &bull; Atualizada em {{ unidade.atualizado_em|date:'d/m/Y H:i' }}

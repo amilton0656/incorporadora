@@ -49,6 +49,14 @@
           {% if form.ordem.errors %}<p class="text-red-500 text-xs mt-1">{{ form.ordem.errors.0 }}</p>{% endif %}
         </div>
 
+        <div class="sm:col-span-2">
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.nome_exibicao.id_for_label }}">
+            Nome de exibição <span class="text-gray-400 font-normal text-xs">opcional — substitui o número em listas e tabelas</span>
+          </label>
+          {{ form.nome_exibicao }}
+          {% if form.nome_exibicao.errors %}<p class="text-red-500 text-xs mt-1">{{ form.nome_exibicao.errors.0 }}</p>{% endif %}
+        </div>
+
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.status.id_for_label }}">Status</label>
           {{ form.status }}

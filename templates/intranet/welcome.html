@@ -49,6 +49,9 @@
   {% include 'intranet/_card_modulo.html' with titulo='Vendas' descricao='Propostas, contratos e distratos.' cor='yellow' icon='document' ativo=cards_ativos %}
   {% include 'intranet/_card_modulo.html' with titulo='Financeiro' descricao='Parcelas, recebimentos e inadimplência.' cor='red' icon='money' ativo=cards_ativos %}
 
+  {% url 'empreendimentos:tipo_unidade_list' as url_configuracoes %}
+  {% include 'intranet/_card_modulo.html' with titulo='Configurações' descricao='Tipos e status de unidades.' cor='gray' icon='cog' ativo=cards_ativos link_url=url_configuracoes %}
+
   <!-- Card Administração — sempre disponível -->
   <a href="{% url 'core:empresa_list' %}"
      class="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-md transition block">

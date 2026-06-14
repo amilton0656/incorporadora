@@ -21,6 +21,26 @@
              class="px-3 py-1.5 rounded text-blue-200 hover:text-white hover:bg-brand-light transition">
             Empreendimentos
           </a>
+          <!-- Dropdown Configurações -->
+          <div class="relative group">
+            <button class="flex items-center gap-1 px-3 py-1.5 rounded text-blue-200 hover:text-white hover:bg-brand-light transition">
+              Configurações
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </button>
+            <div class="absolute left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-100 py-1
+                        invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all z-50">
+              <a href="{% url 'empreendimentos:tipo_unidade_list' %}"
+                 class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition">
+                Tipos de unidade
+              </a>
+              <a href="{% url 'empreendimentos:status_unidade_list' %}"
+                 class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition">
+                Status de unidade
+              </a>
+            </div>
+          </div>
         </div>
         {% endif %}
       </div>

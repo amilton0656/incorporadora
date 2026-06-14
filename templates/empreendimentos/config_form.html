@@ -27,12 +27,24 @@
     {% endif %}
 
     <div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.nome.id_for_label }}">
-          Nome <span class="text-red-500">*</span>
-        </label>
-        {{ form.nome }}
-        {% if form.nome.errors %}<p class="text-red-500 text-xs mt-1">{{ form.nome.errors.0 }}</p>{% endif %}
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+
+        <div class="{% if not form.categoria %}sm:col-span-2{% endif %}">
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.nome.id_for_label }}">
+            Nome <span class="text-red-500">*</span>
+          </label>
+          {{ form.nome }}
+          {% if form.nome.errors %}<p class="text-red-500 text-xs mt-1">{{ form.nome.errors.0 }}</p>{% endif %}
+        </div>
+
+        {% if form.categoria %}
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.categoria.id_for_label }}">Categoria</label>
+          {{ form.categoria }}
+          {% if form.categoria.errors %}<p class="text-red-500 text-xs mt-1">{{ form.categoria.errors.0 }}</p>{% endif %}
+        </div>
+        {% endif %}
+
       </div>
     </div>
 

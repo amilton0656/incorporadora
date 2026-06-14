@@ -25,10 +25,10 @@
 
     <div class="bg-white border border-gray-200 rounded-xl p-6 mb-4 flex flex-col gap-5">
 
-      <!-- Arquivo -->
+      <!-- Arquivo de unidades -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1" for="id_arquivo">
-          Arquivo CSV <span class="text-red-500">*</span>
+          CSV de unidades <span class="text-red-500">*</span>
         </label>
         <input type="file" name="arquivo" id="id_arquivo" accept=".csv"
                class="w-full text-sm text-gray-600 border border-gray-300 rounded-lg px-3 py-2
@@ -36,6 +36,19 @@
                       file:text-xs file:font-medium file:bg-brand file:text-white
                       hover:file:bg-brand-dark transition cursor-pointer">
         <p class="text-xs text-gray-400 mt-1">Formato: CSV separado por ponto-e-vírgula (;), UTF-8 ou Latin-1.</p>
+      </div>
+
+      <!-- Arquivo de vínculos -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1" for="id_arquivo_vinculos">
+          CSV de vínculos <span class="text-xs text-gray-400 font-normal">(opcional)</span>
+        </label>
+        <input type="file" name="arquivo_vinculos" id="id_arquivo_vinculos" accept=".csv"
+               class="w-full text-sm text-gray-600 border border-gray-300 rounded-lg px-3 py-2
+                      file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0
+                      file:text-xs file:font-medium file:bg-brand file:text-white
+                      hover:file:bg-brand-dark transition cursor-pointer">
+        <p class="text-xs text-gray-400 mt-1">Colunas: <span class="font-mono">tipo;principal;complementar;designacao_tipo</span> — tipo 1 = matrículas diferentes, tipo 2 = mesma matrícula.</p>
       </div>
 
       <!-- Modo -->

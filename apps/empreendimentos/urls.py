@@ -26,6 +26,16 @@ urlpatterns = [
     path('empreendimentos/<int:pk>/blocos/<int:bloco_pk>/unidades/<int:unidade_pk>/pdf/', views.unidade_pdf, name='unidade_pdf'),
     # Importação
     path('empreendimentos/<int:pk>/importar-unidades/', views.importar_unidades, name='importar_unidades'),
+    # Vínculos complementares
+    path('empreendimentos/<int:pk>/blocos/<int:bloco_pk>/unidades/<int:unidade_pk>/vincular/',
+         views.vincular_complementar, name='vincular_complementar'),
+    path('empreendimentos/<int:pk>/blocos/<int:bloco_pk>/unidades/<int:unidade_pk>/desvincular/<int:complementar_pk>/',
+         views.desvincular_complementar, name='desvincular_complementar'),
+    # Designações
+    path('empreendimentos/<int:pk>/blocos/<int:bloco_pk>/unidades/<int:unidade_pk>/designacoes/nova/',
+         views.designacao_create, name='designacao_create'),
+    path('empreendimentos/<int:pk>/blocos/<int:bloco_pk>/unidades/<int:unidade_pk>/designacoes/<int:des_pk>/excluir/',
+         views.designacao_delete, name='designacao_delete'),
     # Configurações
     path('configuracoes/status-unidade/', views.StatusUnidadeListView.as_view(), name='status_unidade_list'),
     path('configuracoes/status-unidade/novo/', views.StatusUnidadeCreateView.as_view(), name='status_unidade_create'),

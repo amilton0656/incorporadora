@@ -28,6 +28,7 @@
     <thead class="bg-gray-50 border-b border-gray-200">
       <tr>
         <th class="text-left px-6 py-3 font-semibold text-gray-600">Nome</th>
+        <th class="text-left px-6 py-3 font-semibold text-gray-600">Categoria</th>
         <th class="px-6 py-3"></th>
       </tr>
     </thead>
@@ -35,6 +36,13 @@
       {% for item in items %}
       <tr class="hover:bg-gray-50 transition">
         <td class="px-6 py-4 font-medium text-gray-800">{{ item.nome }}</td>
+        <td class="px-6 py-4">
+          {% if item.categoria == 'principal' %}
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">Principal</span>
+          {% else %}
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">Complementar</span>
+          {% endif %}
+        </td>
         <td class="px-6 py-4 text-right">
           <div class="flex items-center justify-end gap-3">
             <a href="{% url 'empreendimentos:tipo_unidade_update' item.pk %}" class="text-gray-500 hover:text-brand text-xs font-medium">Editar</a>
