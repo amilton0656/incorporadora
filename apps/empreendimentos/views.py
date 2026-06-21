@@ -1,5 +1,6 @@
 import csv
 import io
+from django.http import HttpResponse
 from decimal import Decimal, InvalidOperation
 
 from django import forms as django_forms
@@ -36,6 +37,21 @@ def _inferir_tipo_designacao(numero):
         if upper.startswith(prefixo):
             return tipo
     return None
+
+
+def _colunas_faltando(fieldnames, obrigatorias):
+    presentes = set(fieldnames or [])
+    return sorted(obrigatorias - presentes)
+
+
+_COLUNAS_UNIDADES = {
+    'Bloco', 'numero', 'ordem', 'adicionais', 'tipo', 'tipologia',
+    'localizacao', 'area_privativa', 'area_privativa_acessoria',
+    'area_comum', 'fracao_ideal', 'valor_tabela', 'status',
+    'descricao1', 'descricao2', 'descricao3',
+}
+
+_COLUNAS_VINCULOS = {'tipo', 'principal', 'complementar'}
 
 
 _CAMPOS_IGNORADOS = {
@@ -595,6 +611,40 @@ def _parse_decimal(val):
         return None
 
 
+_MODELO_UNIDADES = [
+    ['Empreendimento', 'Bloco', 'numero', 'ordem', 'adicionais', 'tipo', 'tipologia',
+     'localizacao', 'area_privativa', 'area_privativa_acessoria', 'area_comum',
+     'fracao_ideal', 'valor_tabela', 'status', 'descricao1', 'descricao2', 'descricao3'],
+    ['Residencial Alpha', 'Torre A', '101', '1', '', 'Apartamento', '2 quartos',
+     'Frente', '65,00', '', '10,00', '0,00123456', '350000,00', 'Disponível', '', '', ''],
+]
+
+_MODELO_VINCULOS = [
+    ['tipo', 'principal', 'complementar', 'designacao_tipo'],
+    ['1', '101', 'G10', ''],
+    ['2', '101', 'HB01', 'Hobby box'],
+    ['2', '101', 'M05', 'Garagem moto'],
+]
+
+
+@login_required
+def modelo_importacao_csv(request, pk, tipo):
+    get_object_or_404(Empreendimento.objects, pk=pk)
+
+    modelos = {'unidades': (_MODELO_UNIDADES, 'modelo_unidades.csv'),
+               'vinculos': (_MODELO_VINCULOS, 'modelo_vinculos.csv')}
+    if tipo not in modelos:
+        from django.http import Http404
+        raise Http404
+
+    linhas, nome_arquivo = modelos[tipo]
+    response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+    response['Content-Disposition'] = f'attachment; filename="{nome_arquivo}"'
+    writer = csv.writer(response, delimiter=';')
+    writer.writerows(linhas)
+    return response
+
+
 @login_required
 def importar_unidades(request, pk):
     empreendimento = get_object_or_404(Empreendimento.objects, pk=pk)
@@ -630,6 +680,10 @@ def importar_unidades(request, pk):
 
     if arquivo:
         reader = csv.DictReader(io.StringIO(conteudo), delimiter=';')
+        faltando = _colunas_faltando(reader.fieldnames, _COLUNAS_UNIDADES)
+        if faltando:
+            messages.error(request, f'CSV de unidades: coluna(s) ausente(s): {", ".join(faltando)}')
+            return redirect('empreendimentos:importar_unidades', pk=pk)
 
         if modo == 'apagar_tudo':
             for bloco in empreendimento.blocos.all():
@@ -715,8 +769,14 @@ def importar_unidades(request, pk):
             messages.error(request, 'CSV de vínculos: não foi possível decodificar o arquivo.')
             return redirect('empreendimentos:empreendimento_detail', pk=pk)
 
+        reader_v = csv.DictReader(io.StringIO(conteudo_v), delimiter=';')
+        faltando_v = _colunas_faltando(reader_v.fieldnames, _COLUNAS_VINCULOS)
+        if faltando_v:
+            messages.error(request, f'CSV de vínculos: coluna(s) ausente(s): {", ".join(faltando_v)}')
+            return redirect('empreendimentos:empreendimento_detail', pk=pk)
+
         processados_v = erros_v = 0
-        for i, row in enumerate(csv.DictReader(io.StringIO(conteudo_v), delimiter=';'), start=2):
+        for i, row in enumerate(reader_v, start=2):
             tipo_v = row.get('tipo', '').strip()
             num_princ = row.get('principal', '').strip()
             num_comp = row.get('complementar', '').strip()

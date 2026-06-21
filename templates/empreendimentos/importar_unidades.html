@@ -36,6 +36,8 @@
                       file:text-xs file:font-medium file:bg-brand file:text-white
                       hover:file:bg-brand-dark transition cursor-pointer">
         <p class="text-xs text-gray-400 mt-1">Formato: CSV separado por ponto-e-vírgula (;), UTF-8 ou Latin-1.</p>
+        <a href="{% url 'empreendimentos:modelo_importacao_csv' empreendimento.pk 'unidades' %}"
+           class="inline-block mt-1.5 text-xs text-brand hover:underline">Baixar arquivo modelo</a>
       </div>
 
       <!-- Arquivo de vínculos -->
@@ -49,6 +51,8 @@
                       file:text-xs file:font-medium file:bg-brand file:text-white
                       hover:file:bg-brand-dark transition cursor-pointer">
         <p class="text-xs text-gray-400 mt-1">Colunas: <span class="font-mono">tipo;principal;complementar;designacao_tipo</span> — tipo 1 = matrículas diferentes, tipo 2 = mesma matrícula.</p>
+        <a href="{% url 'empreendimentos:modelo_importacao_csv' empreendimento.pk 'vinculos' %}"
+           class="inline-block mt-1.5 text-xs text-brand hover:underline">Baixar arquivo modelo</a>
       </div>
 
       <!-- Modo -->

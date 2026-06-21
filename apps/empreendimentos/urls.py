@@ -26,6 +26,7 @@ urlpatterns = [
     path('empreendimentos/<int:pk>/blocos/<int:bloco_pk>/unidades/<int:unidade_pk>/pdf/', views.unidade_pdf, name='unidade_pdf'),
     # Importação
     path('empreendimentos/<int:pk>/importar-unidades/', views.importar_unidades, name='importar_unidades'),
+    path('empreendimentos/<int:pk>/importar-unidades/modelo/<str:tipo>/', views.modelo_importacao_csv, name='modelo_importacao_csv'),
     # Vínculos complementares
     path('empreendimentos/<int:pk>/blocos/<int:bloco_pk>/unidades/<int:unidade_pk>/vincular/',
          views.vincular_complementar, name='vincular_complementar'),

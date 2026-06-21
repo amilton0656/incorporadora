@@ -14,9 +14,12 @@
     Seu usuário ainda não foi associado a nenhuma empresa.<br>
     Entre em contato com o administrador do sistema.
   </p>
-  <a href="{% url 'logout' %}"
-     class="inline-block text-sm font-medium text-gray-500 hover:text-gray-700 border border-gray-300 px-5 py-2 rounded-lg hover:bg-gray-50 transition">
-    Sair
-  </a>
+  <form method="post" action="{% url 'logout' %}">
+    {% csrf_token %}
+    <button type="submit"
+            class="text-sm font-medium text-gray-500 hover:text-gray-700 border border-gray-300 px-5 py-2 rounded-lg hover:bg-gray-50 transition cursor-pointer bg-white">
+      Sair
+    </button>
+  </form>
 </div>
 {% endblock %}

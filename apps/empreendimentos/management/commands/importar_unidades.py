@@ -54,6 +54,20 @@ def _fix_encoding(content):
         return content
 
 
+def _colunas_faltando(fieldnames, obrigatorias):
+    return sorted(obrigatorias - set(fieldnames or []))
+
+
+COLUNAS_UNIDADES = {
+    'Empreendimento', 'Bloco', 'numero', 'ordem', 'adicionais', 'tipo',
+    'tipologia', 'localizacao', 'area_privativa', 'area_privativa_acessoria',
+    'area_comum', 'fracao_ideal', 'valor_tabela', 'status',
+    'descricao1', 'descricao2', 'descricao3',
+}
+
+COLUNAS_VINCULOS = {'tipo', 'principal', 'complementar'}
+
+
 class Command(BaseCommand):
     help = 'Importa unidades a partir de CSV (separador ;). Use --vinculos para vínculos.'
 
@@ -76,7 +90,12 @@ class Command(BaseCommand):
         with open(options['arquivo'], encoding='utf-8-sig') as f:
             content = _fix_encoding(f.read())
 
-        rows = list(csv.DictReader(content.splitlines(), delimiter=';'))
+        reader = csv.DictReader(content.splitlines(), delimiter=';')
+        faltando = _colunas_faltando(reader.fieldnames, COLUNAS_UNIDADES)
+        if faltando:
+            raise CommandError(f'CSV de unidades: coluna(s) ausente(s): {", ".join(faltando)}')
+
+        rows = list(reader)
         criadas = atualizadas = erros = 0
 
         for i, row in enumerate(rows, start=2):
@@ -181,7 +200,12 @@ class Command(BaseCommand):
         with open(arquivo, encoding='utf-8-sig') as f:
             content = _fix_encoding(f.read())
 
-        for i, row in enumerate(csv.DictReader(content.splitlines(), delimiter=';'), start=2):
+        reader = csv.DictReader(content.splitlines(), delimiter=';')
+        faltando = _colunas_faltando(reader.fieldnames, COLUNAS_VINCULOS)
+        if faltando:
+            raise CommandError(f'CSV de vínculos: coluna(s) ausente(s): {", ".join(faltando)}')
+
+        for i, row in enumerate(reader, start=2):
             tipo = row.get('tipo', '').strip()
             num_princ = row.get('principal', '').strip()
             num_comp = row.get('complementar', '').strip()

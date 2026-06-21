@@ -98,7 +98,10 @@
         <span class="hidden sm:block text-blue-200 text-sm truncate max-w-[120px]">
           {{ request.user.get_full_name|default:request.user.username }}
         </span>
-        <a href="{% url 'logout' %}" class="text-blue-200 hover:text-white text-sm transition shrink-0">Sair</a>
+        <form method="post" action="{% url 'logout' %}">
+          {% csrf_token %}
+          <button type="submit" class="text-blue-200 hover:text-white text-sm transition shrink-0 bg-transparent border-0 p-0 cursor-pointer">Sair</button>
+        </form>
       </div>
 
     </div>
