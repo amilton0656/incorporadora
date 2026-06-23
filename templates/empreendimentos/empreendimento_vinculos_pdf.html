@@ -1,0 +1,98 @@
+{% load formatters %}<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Vínculos — {{ empreendimento.nome }}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; font-size: 11px; color: #1f2937; padding: 40px; }
+    header { border-bottom: 3px solid #1B3A6B; padding-bottom: 16px; margin-bottom: 24px; }
+    header h1 { font-size: 20px; color: #1B3A6B; }
+    header p { color: #6b7280; font-size: 11px; margin-top: 3px; }
+    h2 { font-size: 13px; font-weight: 700; color: #1B3A6B; margin: 24px 0 8px; border-left: 3px solid #1B3A6B; padding-left: 8px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+    thead th { background: #1B3A6B; color: #fff; font-size: 8px; text-transform: uppercase; letter-spacing: .05em; padding: 5px 8px; text-align: left; }
+    tbody td { padding: 5px 8px; border-bottom: 1px solid #e5e7eb; font-size: 10px; }
+    tbody tr:nth-child(even) { background: #f9fafb; }
+    .row-comp td { background: #f3f4f6; color: #6b7280; }
+    .row-desig td { background: #f9fafb; color: #9ca3af; font-style: italic; }
+    .indent { padding-left: 20px; }
+    .badge { display: inline-block; padding: 1px 7px; border-radius: 20px; font-size: 9px; font-weight: 600; background: #e5e7eb; color: #374151; }
+    .empty { color: #9ca3af; font-size: 11px; padding-left: 8px; }
+    .footer-table { width: 100%; margin-top: 32px; border-top: 1px solid #e5e7eb; }
+    .footer-table td { font-size: 10px; color: #9ca3af; padding-top: 8px; }
+    @page { margin: 1.5cm; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Vínculos de Unidades</h1>
+  <p>{{ empreendimento.nome }} &mdash; {{ empreendimento.empresa.nome }}</p>
+</header>
+
+{% for item in blocos_dados %}
+<h2>{{ item.bloco.nome }}</h2>
+
+{% if item.principais %}
+<table>
+  <thead>
+    <tr>
+      <th>Unidade</th>
+      <th>Tipo</th>
+      <th>Tipologia</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for principal in item.principais %}
+    <tr>
+      <td><strong>{{ principal.numero }}</strong></td>
+      <td>{{ principal.tipo|default:'—' }}</td>
+      <td>{{ principal.tipologia|default:'—' }}</td>
+      <td>{% if principal.status %}<span class="badge">{{ principal.status }}</span>{% else %}—{% endif %}</td>
+    </tr>
+    {% for comp in principal.complementares.all %}
+    <tr class="row-comp">
+      <td class="indent">&#8627; {{ comp.numero }}</td>
+      <td>{{ comp.tipo|default:'—' }}</td>
+      <td>{{ comp.tipologia|default:'—' }}</td>
+      <td>{% if comp.status %}<span class="badge">{{ comp.status }}</span>{% else %}—{% endif %}</td>
+    </tr>
+    {% for d in comp.designacoes.all %}
+    <tr class="row-desig">
+      <td class="indent">&#8627; {{ d.nome }}</td>
+      <td>{{ d.get_tipo_display }}</td>
+      <td>mesma matrícula</td>
+      <td>{% if comp.status %}<span class="badge">{{ comp.status }}</span>{% else %}—{% endif %}</td>
+    </tr>
+    {% endfor %}
+    {% endfor %}
+    {% for d in principal.designacoes.all %}
+    <tr class="row-desig">
+      <td class="indent">&#8627; {{ d.nome }}</td>
+      <td>{{ d.get_tipo_display }}</td>
+      <td>mesma matrícula</td>
+      <td>{% if principal.status %}<span class="badge">{{ principal.status }}</span>{% else %}—{% endif %}</td>
+    </tr>
+    {% endfor %}
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">Nenhuma unidade cadastrada neste bloco.</p>
+{% endif %}
+
+{% empty %}
+<p class="empty">Nenhum bloco cadastrado.</p>
+{% endfor %}
+
+<table class="footer-table">
+  <tr>
+    <td>Gerado em {% now "d/m/Y H:i" %}</td>
+    <td style="text-align:right;">{{ empreendimento.nome }}</td>
+  </tr>
+</table>
+
+</body>
+</html>

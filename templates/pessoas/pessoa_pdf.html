@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ pessoa.nome_exibicao }} — Ficha Cadastral</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; font-size: 12px; color: #1f2937; padding: 40px; }
+    header { border-bottom: 3px solid #1B3A6B; padding-bottom: 16px; margin-bottom: 24px; }
+    header h1 { font-size: 20px; color: #1B3A6B; }
+    header p { color: #6b7280; font-size: 11px; margin-top: 3px; }
+    .badges { margin-top: 8px; }
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 10px; font-weight: 600; background: #e0e7ff; color: #3730a3; margin-right: 4px; }
+    .badge-tipo { background: #dbeafe; color: #1d4ed8; }
+    h2 { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #6b7280; margin-bottom: 8px; margin-top: 20px; }
+    .section { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 0; margin-bottom: 16px; }
+    .section table { width: 100%; border-collapse: collapse; }
+    .section td { padding: 9px 14px; vertical-align: top; width: 50%; border-bottom: 1px solid #f3f4f6; }
+    .section tr:last-child td { border-bottom: none; }
+    .section label { font-size: 9px; text-transform: uppercase; letter-spacing: .06em; color: #9ca3af; display: block; margin-bottom: 2px; }
+    .section span { font-size: 12px; color: #1f2937; }
+    .obs { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px 14px; font-size: 11px; color: #4b5563; white-space: pre-wrap; }
+    .footer-table { width: 100%; margin-top: 32px; border-top: 1px solid #e5e7eb; }
+    .footer-table td { font-size: 10px; color: #9ca3af; padding-top: 8px; }
+    @page { margin: 1.5cm; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>{{ pessoa.nome_exibicao }}</h1>
+  <p>{{ pessoa.empresa.nome }}</p>
+  <div class="badges">
+    <span class="badge badge-tipo">{% if pessoa.tipo == 'pf' %}Pessoa Física{% else %}Pessoa Jurídica{% endif %}</span>
+    {% for pp in pessoa.papeis.all %}
+    <span class="badge">{{ pp.papel.nome }}</span>
+    {% endfor %}
+  </div>
+</header>
+
+{% if pessoa.tipo == 'pf' %}
+<h2>Identificação</h2>
+<div class="section">
+  <table>
+    <tr>
+      <td><label>Nome completo</label><span>{{ pessoa.nome|default:'—' }}</span></td>
+      <td><label>CPF</label><span>{{ pessoa.cpf|default:'—' }}</span></td>
+    </tr>
+    <tr>
+      <td><label>RG</label><span>{{ pessoa.rg|default:'—' }}</span></td>
+      <td><label>Data de nascimento</label><span>{{ pessoa.data_nascimento|date:'d/m/Y'|default:'—' }}</span></td>
+    </tr>
+    <tr>
+      <td><label>Estado civil</label><span>{{ pessoa.get_estado_civil_display|default:'—' }}</span></td>
+      <td><label>Profissão</label><span>{{ pessoa.profissao|default:'—' }}</span></td>
+    </tr>
+    <tr>
+      <td colspan="2"><label>Nacionalidade</label><span>{{ pessoa.nacionalidade|default:'—' }}</span></td>
+    </tr>
+  </table>
+</div>
+{% else %}
+<h2>Dados da empresa</h2>
+<div class="section">
+  <table>
+    <tr>
+      <td colspan="2"><label>Razão social</label><span>{{ pessoa.razao_social|default:'—' }}</span></td>
+    </tr>
+    <tr>
+      <td colspan="2"><label>Nome fantasia</label><span>{{ pessoa.nome_fantasia|default:'—' }}</span></td>
+    </tr>
+    <tr>
+      <td><label>CNPJ</label><span>{{ pessoa.cnpj|default:'—' }}</span></td>
+      <td><label>Inscrição estadual</label><span>{{ pessoa.inscricao_estadual|default:'—' }}</span></td>
+    </tr>
+  </table>
+</div>
+{% endif %}
+
+<h2>Contato</h2>
+<div class="section">
+  <table>
+    <tr>
+      <td><label>E-mail</label><span>{{ pessoa.email|default:'—' }}</span></td>
+      <td><label>Telefone</label><span>{{ pessoa.telefone|default:'—' }}</span></td>
+    </tr>
+    <tr>
+      <td colspan="2"><label>Celular</label><span>{{ pessoa.celular|default:'—' }}</span></td>
+    </tr>
+  </table>
+</div>
+
+<h2>Endereço</h2>
+<div class="section">
+  <table>
+    <tr>
+      <td><label>CEP</label><span>{{ pessoa.cep|default:'—' }}</span></td>
+      <td><label>Logradouro</label><span>{{ pessoa.logradouro|default:'—' }}{% if pessoa.numero %}, {{ pessoa.numero }}{% endif %}{% if pessoa.complemento %} — {{ pessoa.complemento }}{% endif %}</span></td>
+    </tr>
+    <tr>
+      <td><label>Bairro</label><span>{{ pessoa.bairro|default:'—' }}</span></td>
+      <td><label>Cidade / UF</label><span>{{ pessoa.cidade|default:'—' }}{% if pessoa.estado %} / {{ pessoa.estado }}{% endif %}</span></td>
+    </tr>
+  </table>
+</div>
+
+{% if pessoa.observacoes %}
+<h2>Observações</h2>
+<div class="obs">{{ pessoa.observacoes }}</div>
+{% endif %}
+
+<table class="footer-table">
+  <tr>
+    <td>Gerado em {% now "d/m/Y H:i" %}</td>
+    <td style="text-align:right;">Cadastrado em {{ pessoa.criado_em|date:'d/m/Y' }}</td>
+  </tr>
+</table>
+
+</body>
+</html>

@@ -1,0 +1,85 @@
+{% extends 'base_intranet.html' %}
+{% load formatters %}
+{% block title %}Tabelas de Vendas — {{ empreendimento.nome }}{% endblock %}
+
+{% block breadcrumb %}
+<nav class="text-sm text-gray-400 mb-6">
+  <a href="{% url 'intranet:welcome' %}" class="hover:text-brand transition">Início</a>
+  <span class="mx-2">/</span>
+  <a href="{% url 'empreendimentos:empreendimento_list' %}" class="hover:text-brand transition">Empreendimentos</a>
+  <span class="mx-2">/</span>
+  <a href="{% url 'empreendimentos:empreendimento_detail' empreendimento.pk %}" class="hover:text-brand transition">{{ empreendimento.nome }}</a>
+  <span class="mx-2">/</span>
+  <span class="text-gray-700 font-medium">Tabelas de Vendas</span>
+</nav>
+{% endblock %}
+
+{% block inner_content %}
+<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+  <div>
+    <h1 class="text-2xl font-semibold text-gray-800">Tabelas de Vendas</h1>
+    <p class="text-gray-400 text-sm mt-0.5">{{ empreendimento.nome }}</p>
+  </div>
+  <div class="flex gap-2">
+    <a href="{% url 'empreendimentos:empreendimento_detail' empreendimento.pk %}"
+       class="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-gray-700">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+      </svg>
+      Voltar
+    </a>
+    <a href="{% url 'vendas:tabela_create' empreendimento.pk %}"
+       class="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 bg-brand hover:bg-brand-dark text-white rounded-lg transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+      </svg>
+      Nova tabela
+    </a>
+  </div>
+</div>
+
+{% if tabelas %}
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+  {% for tabela in tabelas %}
+  <div class="bg-white border {% if tabela.deletado %}border-red-100{% elif tabela.ativa %}border-brand/30{% else %}border-gray-200{% endif %} rounded-xl p-5 hover:shadow-sm transition">
+    <div class="flex items-start justify-between mb-3">
+      <div>
+        <h3 class="font-semibold text-gray-800">{{ tabela.nome }}</h3>
+        <p class="text-xs text-gray-400 mt-0.5">{{ tabela.itens.count }} unidade{{ tabela.itens.count|pluralize }}</p>
+      </div>
+      <div class="flex flex-col items-end gap-1">
+        {% if tabela.deletado %}
+          <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-600">Excluída</span>
+        {% elif tabela.ativa %}
+          <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Ativa</span>
+        {% else %}
+          <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">Inativa</span>
+        {% endif %}
+      </div>
+    </div>
+    {% if tabela.vigencia_inicio or tabela.vigencia_fim %}
+    <p class="text-xs text-gray-400 mb-3">
+      {% if tabela.vigencia_inicio %}{{ tabela.vigencia_inicio|date:'d/m/Y' }}{% endif %}
+      {% if tabela.vigencia_inicio and tabela.vigencia_fim %} → {% endif %}
+      {% if tabela.vigencia_fim %}{{ tabela.vigencia_fim|date:'d/m/Y' }}{% endif %}
+    </p>
+    {% endif %}
+    <div class="flex items-center gap-3 pt-3 border-t border-gray-100">
+      <a href="{% url 'vendas:tabela_detail' empreendimento.pk tabela.pk %}" class="text-xs font-medium text-brand hover:underline">Ver tabela</a>
+      {% if not tabela.deletado %}
+      <a href="{% url 'vendas:tabela_update' empreendimento.pk tabela.pk %}" class="text-xs text-gray-400 hover:text-brand">Editar</a>
+      <a href="{% url 'vendas:tabela_pdf' empreendimento.pk tabela.pk %}" class="text-xs text-gray-400 hover:text-brand">PDF</a>
+      <a href="{% url 'vendas:tabela_delete' empreendimento.pk tabela.pk %}" class="text-xs text-red-400 hover:text-red-600 ml-auto">Excluir</a>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="bg-white border border-gray-200 rounded-xl px-6 py-12 text-center text-gray-400 text-sm">
+  Nenhuma tabela de vendas cadastrada.
+  <br>
+  <a href="{% url 'vendas:tabela_create' empreendimento.pk %}" class="text-brand hover:underline font-medium mt-2 inline-block">Criar a primeira tabela</a>
+</div>
+{% endif %}
+{% endblock %}

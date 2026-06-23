@@ -40,12 +40,13 @@
 
 <!-- Grid de módulos -->
 {% url 'empreendimentos:empreendimento_list' as url_empreendimentos %}
+{% url 'pessoas:pessoa_list' as url_pessoas %}
 {% with cards_ativos=empresa_atual|default:request.user.is_superuser %}
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
 
   {% include 'intranet/_card_modulo.html' with titulo='Empreendimentos' descricao='Cadastro de obras, fases e blocos.' cor='blue' icon='building' ativo=cards_ativos link_url=url_empreendimentos %}
   {% include 'intranet/_card_modulo.html' with titulo='Unidades' descricao='Tabela de disponibilidade e plantas.' cor='green' icon='home' ativo=cards_ativos %}
-  {% include 'intranet/_card_modulo.html' with titulo='Clientes' descricao='Cadastro e histórico de clientes.' cor='purple' icon='users' ativo=cards_ativos %}
+  {% include 'intranet/_card_modulo.html' with titulo='Pessoas' descricao='Clientes, corretores, fornecedores e mais.' cor='purple' icon='users' ativo=cards_ativos link_url=url_pessoas %}
   {% include 'intranet/_card_modulo.html' with titulo='Vendas' descricao='Propostas, contratos e distratos.' cor='yellow' icon='document' ativo=cards_ativos %}
   {% include 'intranet/_card_modulo.html' with titulo='Financeiro' descricao='Parcelas, recebimentos e inadimplência.' cor='red' icon='money' ativo=cards_ativos %}
 

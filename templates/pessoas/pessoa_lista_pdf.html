@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Pessoas — Listagem</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; font-size: 12px; color: #1f2937; padding: 40px; }
+    header { border-bottom: 3px solid #1B3A6B; padding-bottom: 16px; margin-bottom: 24px; }
+    header h1 { font-size: 20px; color: #1B3A6B; }
+    header p { color: #6b7280; font-size: 11px; margin-top: 2px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    thead th { background: #1B3A6B; color: #fff; font-size: 9px; text-transform: uppercase; letter-spacing: .06em; padding: 6px 8px; text-align: left; }
+    tbody tr:nth-child(even) { background: #f9fafb; }
+    tbody td { padding: 6px 8px; border-bottom: 1px solid #e5e7eb; font-size: 11px; vertical-align: top; }
+    .nome { font-weight: 600; color: #1f2937; }
+    .sub { font-size: 10px; color: #6b7280; }
+    .badge { display: inline-block; padding: 1px 6px; border-radius: 20px; font-size: 9px; font-weight: 600; background: #e0e7ff; color: #3730a3; margin-right: 2px; }
+    .badge-tipo { background: #dbeafe; color: #1d4ed8; }
+    .footer-table { width: 100%; margin-top: 32px; border-top: 1px solid #e5e7eb; }
+    .footer-table td { font-size: 10px; color: #9ca3af; padding-top: 8px; }
+    @page { margin: 1.5cm; size: landscape; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Pessoas — Listagem</h1>
+  <p>{{ pessoas|length }} pessoa{{ pessoas|length|pluralize }} encontrada{{ pessoas|length|pluralize }}{% if q %} &mdash; filtro: &ldquo;{{ q }}&rdquo;{% endif %}</p>
+</header>
+
+<table>
+  <thead>
+    <tr>
+      <th>Nome / Razão Social</th>
+      <th>Tipo</th>
+      <th>Documento</th>
+      <th>Papéis</th>
+      <th>Contato</th>
+      <th>Cidade / UF</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in pessoas %}
+    <tr>
+      <td>
+        <div class="nome">{{ p.nome_exibicao }}</div>
+        {% if p.tipo == 'pj' and p.nome_fantasia %}<div class="sub">{{ p.razao_social }}</div>{% endif %}
+      </td>
+      <td><span class="badge badge-tipo">{% if p.tipo == 'pf' %}PF{% else %}PJ{% endif %}</span></td>
+      <td class="sub">{{ p.documento|default:'—' }}</td>
+      <td>
+        {% for pp in p.papeis.all %}
+        <span class="badge">{{ pp.papel.nome }}</span>
+        {% empty %}—
+        {% endfor %}
+      </td>
+      <td class="sub">
+        {% if p.celular %}{{ p.celular }}{% elif p.telefone %}{{ p.telefone }}{% else %}—{% endif %}
+        {% if p.email %}<br>{{ p.email }}{% endif %}
+      </td>
+      <td class="sub">{% if p.cidade %}{{ p.cidade }}{% if p.estado %} / {{ p.estado }}{% endif %}{% else %}—{% endif %}</td>
+    </tr>
+    {% empty %}
+    <tr>
+      <td colspan="6" style="text-align:center; color:#9ca3af; padding:20px;">Nenhuma pessoa encontrada.</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<table class="footer-table">
+  <tr>
+    <td>Gerado em {% now "d/m/Y H:i" %}</td>
+    <td style="text-align:right;">Total: {{ pessoas|length }} pessoa{{ pessoas|length|pluralize }}</td>
+  </tr>
+</table>
+
+</body>
+</html>

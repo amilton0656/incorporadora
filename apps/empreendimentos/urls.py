@@ -13,9 +13,13 @@ urlpatterns = [
     path('empreendimentos/<int:pk>/excluir/', views.EmpreendimentoDeleteView.as_view(), name='empreendimento_delete'),
     path('empreendimentos/<int:pk>/restaurar/', views.EmpreendimentoRestoreView.as_view(), name='empreendimento_restore'),
     path('empreendimentos/<int:pk>/pdf/', views.empreendimento_pdf, name='empreendimento_pdf'),
+    path('empreendimentos/<int:pk>/unidades/', views.EmpreendimentoUnidadesListView.as_view(), name='empreendimento_unidades_list'),
+    path('empreendimentos/<int:pk>/vinculos/', views.EmpreendimentoVinculosView.as_view(), name='empreendimento_vinculos'),
+    path('empreendimentos/<int:pk>/vinculos/pdf/', views.empreendimento_vinculos_pdf, name='empreendimento_vinculos_pdf'),
     # Blocos
     path('empreendimentos/<int:pk>/blocos/novo/', views.BlocoCreateView.as_view(), name='bloco_create'),
     path('empreendimentos/<int:pk>/blocos/<int:bloco_pk>/', views.BlocoDetailView.as_view(), name='bloco_detail'),
+    path('empreendimentos/<int:pk>/blocos/<int:bloco_pk>/pdf/', views.bloco_pdf, name='bloco_pdf'),
     path('empreendimentos/<int:pk>/blocos/<int:bloco_pk>/editar/', views.BlocoUpdateView.as_view(), name='bloco_update'),
     path('empreendimentos/<int:pk>/blocos/<int:bloco_pk>/excluir/', views.BlocoDeleteView.as_view(), name='bloco_delete'),
     # Unidades

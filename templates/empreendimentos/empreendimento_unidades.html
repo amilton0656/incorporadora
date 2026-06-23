@@ -1,0 +1,241 @@
+{% extends 'base_intranet.html' %}
+{% load formatters %}
+{% block title %}Unidades — {{ empreendimento.nome }}{% endblock %}
+
+{% block breadcrumb %}
+<nav class="text-sm text-gray-400 mb-6">
+  <a href="{% url 'intranet:welcome' %}" class="hover:text-brand transition">Início</a>
+  <span class="mx-2">/</span>
+  <a href="{% url 'empreendimentos:empreendimento_list' %}" class="hover:text-brand transition">Empreendimentos</a>
+  <span class="mx-2">/</span>
+  <a href="{% url 'empreendimentos:empreendimento_detail' empreendimento.pk %}" class="hover:text-brand transition">{{ empreendimento.nome }}</a>
+  <span class="mx-2">/</span>
+  <span class="text-gray-700 font-medium">Unidades</span>
+</nav>
+{% endblock %}
+
+{% block inner_content %}
+
+<!-- Cabeçalho -->
+<div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+  <div>
+    <h1 class="text-2xl font-semibold text-gray-800">Unidades</h1>
+    <p class="text-gray-400 text-sm mt-0.5">{{ empreendimento.nome }}</p>
+  </div>
+  <div class="flex flex-wrap gap-2">
+    <a href="{% url 'empreendimentos:empreendimento_detail' empreendimento.pk %}"
+       class="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-gray-700">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+      </svg>
+      Voltar
+    </a>
+    <a href="{% url 'empreendimentos:empreendimento_pdf' empreendimento.pk %}"
+       class="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 bg-brand hover:bg-brand-dark text-white rounded-lg transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+      </svg>
+      Exportar PDF
+    </a>
+  </div>
+</div>
+
+<!-- Totais gerais -->
+<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-8">
+  <div class="bg-white border border-gray-200 rounded-xl px-4 py-3">
+    <p class="text-xs text-gray-400 mb-1">Área Privativa</p>
+    <p class="text-sm font-semibold text-gray-800">{{ totais_gerais.area_privativa|brl_area:2 }} m²</p>
+  </div>
+  <div class="bg-white border border-gray-200 rounded-xl px-4 py-3">
+    <p class="text-xs text-gray-400 mb-1">Área Priv. Acessória</p>
+    <p class="text-sm font-semibold text-gray-800">{{ totais_gerais.area_privativa_acessoria|brl_area:2 }} m²</p>
+  </div>
+  <div class="bg-white border border-gray-200 rounded-xl px-4 py-3">
+    <p class="text-xs text-gray-400 mb-1">Área Comum</p>
+    <p class="text-sm font-semibold text-gray-800">{{ totais_gerais.area_comum|brl_area:2 }} m²</p>
+  </div>
+  <div class="bg-white border border-gray-200 rounded-xl px-4 py-3">
+    <p class="text-xs text-gray-400 mb-1">Área Real Total</p>
+    <p class="text-sm font-semibold text-gray-800">{{ totais_gerais.area_real_total|brl_area:2 }} m²</p>
+  </div>
+  <div class="bg-brand/5 border border-brand/20 rounded-xl px-4 py-3 col-span-2 sm:col-span-1">
+    <p class="text-xs text-gray-400 mb-1">VGV Total</p>
+    <p class="text-base font-bold text-brand">{{ totais_gerais.vgv|brl_moeda }}</p>
+  </div>
+</div>
+
+<!-- Blocos e unidades -->
+{% for item in blocos_dados %}
+<div class="mb-10">
+
+  <!-- Cabeçalho do bloco -->
+  <div class="flex items-center justify-between mb-3">
+    <div class="flex items-center gap-3">
+      <h2 class="text-base font-semibold text-gray-800">{{ item.bloco.nome }}</h2>
+      <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+        {{ item.unidades|length }} unidade{{ item.unidades|length|pluralize }}
+      </span>
+    </div>
+    <a href="{% url 'empreendimentos:bloco_detail' empreendimento.pk item.bloco.pk %}"
+       class="text-xs font-medium text-brand hover:underline inline-flex items-center gap-1">
+      Ver bloco
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+      </svg>
+    </a>
+  </div>
+
+  {% if item.unidades %}
+
+  <!-- DESKTOP: tabela -->
+  <div id="tabela-bloco-{{ item.bloco.pk }}" class="hidden sm:block w-full bg-white border border-gray-200 rounded-xl overflow-x-auto cursor-grab active:cursor-grabbing select-none mb-2">
+    <table class="w-full text-xs whitespace-nowrap">
+      <thead class="bg-gray-50 border-b border-gray-200">
+        <tr>
+          <th class="text-left px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Número</th>
+          <th class="text-left px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Tipo</th>
+          <th class="text-left px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Tipologia</th>
+          <th class="text-left px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Localização</th>
+          <th class="text-right px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Área Priv. (m²)</th>
+          <th class="text-right px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Área Priv. Acess. (m²)</th>
+          <th class="text-right px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Área Comum (m²)</th>
+          <th class="text-right px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Área Total (m²)</th>
+          <th class="text-right px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Fração Ideal</th>
+          <th class="text-right px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Valor Tabela</th>
+          <th class="text-center px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+          <th class="px-4 py-3"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for unidade in item.unidades %}
+        <tr class="hover:bg-gray-50 transition">
+          <td class="px-4 py-3 font-medium text-gray-800">{{ unidade.numero }}</td>
+          <td class="px-4 py-3 text-gray-600">{{ unidade.tipo|default:'—' }}</td>
+          <td class="px-4 py-3 text-gray-600">{{ unidade.tipologia|default:'—' }}</td>
+          <td class="px-4 py-3 text-gray-600">{{ unidade.localizacao|default:'—' }}</td>
+          <td class="px-4 py-3 text-right text-gray-700">{{ unidade.area_privativa|brl_area:2 }}</td>
+          <td class="px-4 py-3 text-right text-gray-700">{{ unidade.area_privativa_acessoria|brl_area:2 }}</td>
+          <td class="px-4 py-3 text-right text-gray-700">{{ unidade.area_comum|brl_area:2 }}</td>
+          <td class="px-4 py-3 text-right font-medium text-gray-800">{{ unidade.area_total|brl_area:2 }}</td>
+          <td class="px-4 py-3 text-right text-gray-700">{{ unidade.fracao_ideal|brl_area:6 }}</td>
+          <td class="px-4 py-3 text-right font-medium text-gray-800">{{ unidade.valor_tabela|brl_moeda }}</td>
+          <td class="px-4 py-3 text-center">
+            {% if unidade.status %}
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">{{ unidade.status }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td class="px-4 py-3 text-right">
+            <div class="flex items-center justify-end gap-3">
+              <a href="{% url 'empreendimentos:unidade_detail' empreendimento.pk item.bloco.pk unidade.pk %}" class="text-brand hover:underline font-medium">Ver</a>
+              <a href="{% url 'empreendimentos:unidade_update' empreendimento.pk item.bloco.pk unidade.pk %}" class="text-gray-500 hover:text-brand font-medium">Editar</a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+        <!-- Subtotal do bloco -->
+        <tr class="bg-brand/5 border-t-2 border-brand/20">
+          <td colspan="4" class="px-4 py-2.5 text-xs font-semibold text-brand">Total {{ item.bloco.nome }}</td>
+          <td class="px-4 py-2.5 text-right text-xs font-semibold text-brand">{{ item.totais.area_privativa|brl_area:2 }}</td>
+          <td class="px-4 py-2.5 text-right text-xs font-semibold text-brand">{{ item.totais.area_privativa_acessoria|brl_area:2 }}</td>
+          <td class="px-4 py-2.5 text-right text-xs font-semibold text-brand">{{ item.totais.area_comum|brl_area:2 }}</td>
+          <td class="px-4 py-2.5 text-right text-xs font-semibold text-brand">{{ item.totais.area_real_total|brl_area:2 }}</td>
+          <td class="px-4 py-2.5 text-right text-xs font-semibold text-brand">{{ item.totais.fracao_ideal|brl_area:6 }}</td>
+          <td class="px-4 py-2.5 text-right text-xs font-bold text-brand">{{ item.totais.vgv|brl_moeda }}</td>
+          <td colspan="2"></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- MOBILE: cards -->
+  <div class="sm:hidden flex flex-col gap-3">
+    {% for unidade in item.unidades %}
+    <div class="bg-white border border-gray-200 rounded-xl p-4">
+      <div class="flex items-start justify-between mb-3">
+        <div>
+          <p class="font-semibold text-gray-800 text-sm">{{ unidade.numero }}</p>
+          <p class="text-xs text-gray-400 mt-0.5">
+            {{ unidade.tipo|default:'' }}{% if unidade.tipologia %} &bull; {{ unidade.tipologia }}{% endif %}
+          </p>
+          {% if unidade.localizacao %}<p class="text-xs text-gray-400">{{ unidade.localizacao }}</p>{% endif %}
+        </div>
+        {% if unidade.status %}
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 ml-2 shrink-0">{{ unidade.status }}</span>
+        {% endif %}
+      </div>
+      <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-xs border-t border-gray-100 pt-3 mb-3">
+        <div>
+          <span class="text-gray-400 block">Área Privativa</span>
+          <span class="font-medium text-gray-700">{{ unidade.area_privativa|brl_area:2 }} m²</span>
+        </div>
+        <div>
+          <span class="text-gray-400 block">Área Priv. Acessória</span>
+          <span class="font-medium text-gray-700">{{ unidade.area_privativa_acessoria|brl_area:2 }} m²</span>
+        </div>
+        <div>
+          <span class="text-gray-400 block">Área Comum</span>
+          <span class="font-medium text-gray-700">{{ unidade.area_comum|brl_area:2 }} m²</span>
+        </div>
+        <div>
+          <span class="text-gray-400 block">Área Total</span>
+          <span class="font-semibold text-gray-800">{{ unidade.area_total|brl_area:2 }} m²</span>
+        </div>
+        <div>
+          <span class="text-gray-400 block">Fração Ideal</span>
+          <span class="font-medium text-gray-700">{{ unidade.fracao_ideal|brl_area:6 }}</span>
+        </div>
+        <div>
+          <span class="text-gray-400 block">Valor Tabela</span>
+          <span class="font-semibold text-gray-800">{{ unidade.valor_tabela|brl_moeda }}</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-4 border-t border-gray-100 pt-3 text-xs">
+        <a href="{% url 'empreendimentos:unidade_detail' empreendimento.pk item.bloco.pk unidade.pk %}" class="text-brand hover:underline font-medium">Ver</a>
+        <a href="{% url 'empreendimentos:unidade_update' empreendimento.pk item.bloco.pk unidade.pk %}" class="text-gray-500 hover:text-brand font-medium">Editar</a>
+      </div>
+    </div>
+    {% endfor %}
+
+    <!-- Subtotal mobile -->
+    <div class="bg-brand/5 border border-brand/20 rounded-xl px-4 py-3">
+      <p class="text-xs font-semibold text-brand mb-2">Total {{ item.bloco.nome }}</p>
+      <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+        <div><span class="text-gray-400">Área Priv.</span> <span class="font-medium text-brand">{{ item.totais.area_privativa|brl_area:2 }} m²</span></div>
+        <div><span class="text-gray-400">Área Total</span> <span class="font-medium text-brand">{{ item.totais.area_real_total|brl_area:2 }} m²</span></div>
+        <div class="col-span-2"><span class="text-gray-400">VGV</span> <span class="font-bold text-brand">{{ item.totais.vgv|brl_moeda }}</span></div>
+      </div>
+    </div>
+  </div>
+
+  {% else %}
+  <div class="bg-white border border-gray-200 rounded-xl px-6 py-8 text-center text-gray-400 text-sm">
+    Nenhuma unidade cadastrada neste bloco.
+  </div>
+  {% endif %}
+
+</div>
+{% empty %}
+<div class="bg-white border border-gray-200 rounded-xl px-6 py-10 text-center text-gray-400 text-sm">
+  Nenhum bloco cadastrado neste empreendimento.
+  <br>
+  <a href="{% url 'empreendimentos:empreendimento_detail' empreendimento.pk %}" class="text-brand hover:underline font-medium mt-2 inline-block">Voltar ao empreendimento</a>
+</div>
+{% endfor %}
+
+<script>
+(function () {
+  document.querySelectorAll('[id^="tabela-bloco-"]').forEach(function(el) {
+    let isDown = false, startX, scrollLeft;
+    el.addEventListener('mousedown', e => { isDown = true; startX = e.pageX - el.offsetLeft; scrollLeft = el.scrollLeft; });
+    el.addEventListener('mouseleave', () => isDown = false);
+    el.addEventListener('mouseup', () => isDown = false);
+    el.addEventListener('mousemove', e => {
+      if (!isDown) return;
+      e.preventDefault();
+      el.scrollLeft = scrollLeft - (e.pageX - el.offsetLeft - startX);
+    });
+  });
+})();
+</script>
+
+{% endblock %}

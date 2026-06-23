@@ -1,8 +1,8 @@
-{% load formatters %}<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Empreendimentos — Listagem</title>
+  <title>Tipos de Papel</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: Arial, sans-serif; font-size: 12px; color: #1f2937; padding: 40px; }
@@ -13,8 +13,7 @@
     thead th { background: #1B3A6B; color: #fff; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; padding: 8px 10px; text-align: left; }
     tbody tr:nth-child(even) { background: #f9fafb; }
     tbody td { padding: 8px 10px; border-bottom: 1px solid #e5e7eb; font-size: 11px; }
-    .badge { display: inline-block; padding: 1px 7px; border-radius: 20px; font-size: 9px; font-weight: 600; background: #f3f4f6; color: #6b7280; }
-    .footer-table { width: 100%; margin-top: 32px; border-top: 1px solid #e5e7eb; padding-top: 10px; }
+    .footer-table { width: 100%; margin-top: 32px; border-top: 1px solid #e5e7eb; }
     .footer-table td { font-size: 10px; color: #9ca3af; padding-top: 8px; }
     @page { margin: 1.5cm; }
   </style>
@@ -22,33 +21,26 @@
 <body>
 
 <header>
-  <h1>Empreendimentos — Listagem</h1>
-  <p>
-    {{ empreendimentos|length }} empreendimento{{ empreendimentos|length|pluralize }} encontrado{{ empreendimentos|length|pluralize }}
-    {% if q %} &mdash; filtro: &ldquo;{{ q }}&rdquo;{% endif %}
-  </p>
+  <h1>Tipos de Papel</h1>
+  <p>{{ tipos|length }} tipo{{ tipos|length|pluralize }} cadastrado{{ tipos|length|pluralize }}</p>
 </header>
 
 <table>
   <thead>
     <tr>
       <th>Nome</th>
-      <th>Empresa</th>
-      <th>Status</th>
-      <th>Blocos</th>
+      <th>Pessoas vinculadas</th>
     </tr>
   </thead>
   <tbody>
-    {% for emp in empreendimentos %}
+    {% for tipo in tipos %}
     <tr>
-      <td><strong>{{ emp.nome }}</strong></td>
-      <td>{{ emp.empresa.nome }}</td>
-      <td><span class="badge">{{ emp.get_status_display }}</span></td>
-      <td>{{ emp.blocos.count }}</td>
+      <td><strong>{{ tipo.nome }}</strong></td>
+      <td>{{ tipo.pessoa_papeis.count }}</td>
     </tr>
     {% empty %}
     <tr>
-      <td colspan="4" style="text-align:center; color:#9ca3af; padding:24px;">Nenhum empreendimento encontrado.</td>
+      <td colspan="2" style="text-align:center; color:#9ca3af; padding:20px;">Nenhum tipo cadastrado.</td>
     </tr>
     {% endfor %}
   </tbody>
@@ -57,7 +49,7 @@
 <table class="footer-table">
   <tr>
     <td>Gerado em {% now "d/m/Y H:i" %}</td>
-    <td style="text-align:right;">Total: {{ empreendimentos|length }} empreendimento{{ empreendimentos|length|pluralize }}</td>
+    <td style="text-align:right;">Total: {{ tipos|length }} tipo{{ tipos|length|pluralize }}</td>
   </tr>
 </table>
 

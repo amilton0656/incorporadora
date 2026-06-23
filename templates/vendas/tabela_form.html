@@ -1,0 +1,88 @@
+{% extends 'base_intranet.html' %}
+{% block title %}Nova Tabela de Vendas{% endblock %}
+
+{% block breadcrumb %}
+<nav class="text-sm text-gray-400 mb-6">
+  <a href="{% url 'intranet:welcome' %}" class="hover:text-brand transition">Início</a>
+  <span class="mx-2">/</span>
+  <a href="{% url 'empreendimentos:empreendimento_detail' empreendimento.pk %}" class="hover:text-brand transition">{{ empreendimento.nome }}</a>
+  <span class="mx-2">/</span>
+  <a href="{% url 'vendas:tabela_list' empreendimento.pk %}" class="hover:text-brand transition">Tabelas de Vendas</a>
+  <span class="mx-2">/</span>
+  <span class="text-gray-700 font-medium">Nova tabela</span>
+</nav>
+{% endblock %}
+
+{% block inner_content %}
+<div class="max-w-2xl">
+  <h1 class="text-2xl font-semibold text-gray-800 mb-6">Nova tabela de vendas</h1>
+  <p class="text-sm text-gray-500 mb-6">{{ empreendimento.nome }}</p>
+
+  <form method="post">
+    {% csrf_token %}
+
+    <div class="bg-white border border-gray-200 rounded-xl p-6 mb-4">
+      <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">Identificação</h2>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Nome da tabela</label>
+          {{ form.nome }}
+          {% if form.nome.errors %}<p class="text-xs text-red-500 mt-1">{{ form.nome.errors.0 }}</p>{% endif %}
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Vigência início</label>
+            {{ form.vigencia_inicio }}
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Vigência fim</label>
+            {{ form.vigencia_fim }}
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+          {{ form.observacoes }}
+        </div>
+        <div class="flex items-center gap-2">
+          {{ form.ativa }}
+          <label class="text-sm text-gray-700">Tabela ativa</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
+      <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-1">Importar unidades</h2>
+      <p class="text-xs text-gray-400 mb-4">Quais unidades principais serão incluídas na tabela?</p>
+      <div class="flex flex-col gap-3">
+        <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-brand transition has-[:checked]:border-brand has-[:checked]:bg-brand/5">
+          <input type="radio" name="modo_importacao" value="todas" checked
+                 class="w-4 h-4 text-brand border-gray-300 focus:ring-brand">
+          <div>
+            <p class="text-sm font-medium text-gray-800">Todas as unidades principais</p>
+            <p class="text-xs text-gray-400">Inclui todas as unidades sem vínculo com outra principal</p>
+          </div>
+        </label>
+        <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-brand transition has-[:checked]:border-brand has-[:checked]:bg-brand/5">
+          <input type="radio" name="modo_importacao" value="disponiveis"
+                 class="w-4 h-4 text-brand border-gray-300 focus:ring-brand">
+          <div>
+            <p class="text-sm font-medium text-gray-800">Apenas unidades disponíveis</p>
+            <p class="text-xs text-gray-400">Inclui apenas unidades com status "Disponível"</p>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <button type="submit"
+              class="px-6 py-2.5 bg-brand hover:bg-brand-dark text-white rounded-lg text-sm font-semibold transition">
+        Criar tabela
+      </button>
+      <a href="{% url 'vendas:tabela_list' empreendimento.pk %}"
+         class="px-6 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition">
+        Cancelar
+      </a>
+    </div>
+  </form>
+</div>
+{% endblock %}

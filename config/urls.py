@@ -9,4 +9,6 @@ urlpatterns = [
     path('', include('apps.intranet.urls', namespace='intranet')),
     path('', include('apps.core.urls', namespace='core')),
     path('', include('apps.empreendimentos.urls', namespace='empreendimentos')),
+    path('', include('apps.pessoas.urls', namespace='pessoas')),
+    path('', include('apps.vendas.urls', namespace='vendas')),
 ]

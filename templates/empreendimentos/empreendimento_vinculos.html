@@ -1,0 +1,200 @@
+{% extends 'base_intranet.html' %}
+{% load formatters %}
+{% block title %}Vínculos — {{ empreendimento.nome }}{% endblock %}
+
+{% block breadcrumb %}
+<nav class="text-sm text-gray-400 mb-6">
+  <a href="{% url 'intranet:welcome' %}" class="hover:text-brand transition">Início</a>
+  <span class="mx-2">/</span>
+  <a href="{% url 'empreendimentos:empreendimento_list' %}" class="hover:text-brand transition">Empreendimentos</a>
+  <span class="mx-2">/</span>
+  <a href="{% url 'empreendimentos:empreendimento_detail' empreendimento.pk %}" class="hover:text-brand transition">{{ empreendimento.nome }}</a>
+  <span class="mx-2">/</span>
+  <span class="text-gray-700 font-medium">Vínculos</span>
+</nav>
+{% endblock %}
+
+{% block inner_content %}
+
+<div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+  <div>
+    <h1 class="text-2xl font-semibold text-gray-800">Vínculos de Unidades</h1>
+    <p class="text-gray-400 text-sm mt-0.5">{{ empreendimento.nome }}</p>
+  </div>
+  <div class="flex flex-wrap gap-2">
+    <a href="{% url 'empreendimentos:empreendimento_detail' empreendimento.pk %}"
+       class="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-gray-700">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+      </svg>
+      Voltar
+    </a>
+    <a href="{% url 'empreendimentos:empreendimento_vinculos_pdf' empreendimento.pk %}"
+       class="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 bg-brand hover:bg-brand-dark text-white rounded-lg transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+      </svg>
+      Exportar PDF
+    </a>
+  </div>
+</div>
+
+{% for item in blocos_dados %}
+<div class="mb-10">
+
+  <div class="flex items-center gap-3 mb-3">
+    <h2 class="text-base font-semibold text-gray-800">{{ item.bloco.nome }}</h2>
+    <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+      {{ item.total_vinculos }} vínculo{{ item.total_vinculos|pluralize }}
+    </span>
+    {% if item.sem_vinculo_count %}
+    <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-50 text-yellow-600">
+      {{ item.sem_vinculo_count }} complementar{{ item.sem_vinculo_count|pluralize }} sem principal
+    </span>
+    {% endif %}
+  </div>
+
+  {% if item.principais %}
+
+  <!-- DESKTOP -->
+  <div class="hidden sm:block w-full bg-white border border-gray-200 rounded-xl overflow-hidden">
+    <table class="w-full text-xs">
+      <thead class="bg-gray-50 border-b border-gray-200">
+        <tr>
+          <th class="text-left px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Unidade</th>
+          <th class="text-left px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Tipo</th>
+          <th class="text-left px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Tipologia</th>
+          <th class="text-left px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+          <th class="px-4 py-3"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for principal in item.principais %}
+        <tr class="bg-white hover:bg-gray-50 transition">
+          <td class="px-4 py-3 font-semibold text-gray-800">{{ principal.numero }}</td>
+          <td class="px-4 py-3 text-gray-600">{{ principal.tipo|default:'—' }}</td>
+          <td class="px-4 py-3 text-gray-500">{{ principal.tipologia|default:'—' }}</td>
+          <td class="px-4 py-3">
+            {% if principal.status %}
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">{{ principal.status }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td class="px-4 py-3 text-right">
+            <a href="{% url 'empreendimentos:unidade_detail' empreendimento.pk item.bloco.pk principal.pk %}" class="text-brand hover:underline font-medium">Ver</a>
+          </td>
+        </tr>
+        {% for comp in principal.complementares.all %}
+        <tr class="bg-gray-50/50 hover:bg-gray-50 transition">
+          <td class="pl-8 pr-4 py-2.5 text-gray-500">
+            <span class="text-gray-300 mr-1.5">↳</span>{{ comp.numero }}
+          </td>
+          <td class="px-4 py-2.5 text-gray-500">{{ comp.tipo|default:'—' }}</td>
+          <td class="px-4 py-2.5 text-gray-400">{{ comp.tipologia|default:'—' }}</td>
+          <td class="px-4 py-2.5">
+            {% if comp.status %}
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">{{ comp.status }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td class="px-4 py-2.5 text-right">
+            <a href="{% url 'empreendimentos:unidade_detail' empreendimento.pk item.bloco.pk comp.pk %}" class="text-gray-400 hover:text-brand hover:underline font-medium">Ver</a>
+          </td>
+        </tr>
+        {% for d in comp.designacoes.all %}
+        <tr class="bg-gray-50/50 hover:bg-gray-50 transition">
+          <td class="pl-8 pr-4 py-2.5 text-gray-500">
+            <span class="text-gray-300 mr-1.5">↳</span>{{ d.nome }}
+          </td>
+          <td class="px-4 py-2.5 text-gray-500">{{ d.get_tipo_display }}</td>
+          <td class="px-4 py-2.5">
+            <span class="text-xs text-gray-400 italic">mesma matrícula</span>
+          </td>
+          <td class="px-4 py-2.5">
+            {% if comp.status %}
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">{{ comp.status }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td class="px-4 py-2.5"></td>
+        </tr>
+        {% endfor %}
+        {% endfor %}
+        {% for d in principal.designacoes.all %}
+        <tr class="bg-gray-50/50 hover:bg-gray-50 transition">
+          <td class="pl-8 pr-4 py-2.5 text-gray-500">
+            <span class="text-gray-300 mr-1.5">↳</span>{{ d.nome }}
+          </td>
+          <td class="px-4 py-2.5 text-gray-500">{{ d.get_tipo_display }}</td>
+          <td class="px-4 py-2.5">
+            <span class="text-xs text-gray-400 italic">mesma matrícula</span>
+          </td>
+          <td class="px-4 py-2.5">
+            {% if principal.status %}
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">{{ principal.status }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td class="px-4 py-2.5"></td>
+        </tr>
+        {% endfor %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- MOBILE: cards -->
+  <div class="sm:hidden flex flex-col gap-3">
+    {% for principal in item.principais %}
+    <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <!-- Principal -->
+      <div class="px-4 py-3 flex items-start justify-between">
+        <div>
+          <p class="font-semibold text-gray-800 text-sm">{{ principal.numero }}</p>
+          <p class="text-xs text-gray-400 mt-0.5">{{ principal.tipo|default:'' }}{% if principal.tipologia %} &bull; {{ principal.tipologia }}{% endif %}</p>
+        </div>
+        <div class="flex items-center gap-2 ml-2">
+          {% if principal.status %}
+          <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 shrink-0">{{ principal.status }}</span>
+          {% endif %}
+          <a href="{% url 'empreendimentos:unidade_detail' empreendimento.pk item.bloco.pk principal.pk %}" class="text-brand text-xs font-medium hover:underline shrink-0">Ver</a>
+        </div>
+      </div>
+      {% for comp in principal.complementares.all %}
+      <div class="border-t border-gray-100 px-4 py-2.5 flex items-center justify-between bg-gray-50/50">
+        <div>
+          <p class="text-xs text-gray-500"><span class="text-gray-300 mr-1">↳</span>{{ comp.numero }}</p>
+          <p class="text-xs text-gray-400">{{ comp.tipo|default:'' }}</p>
+        </div>
+        <div class="flex items-center gap-2">
+          {% if comp.status %}
+          <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500 shrink-0">{{ comp.status }}</span>
+          {% endif %}
+          <a href="{% url 'empreendimentos:unidade_detail' empreendimento.pk item.bloco.pk comp.pk %}" class="text-gray-400 text-xs hover:underline shrink-0">Ver</a>
+        </div>
+      </div>
+      {% for d in comp.designacoes.all %}
+      <div class="border-t border-gray-100 px-4 py-2 bg-gray-50/50">
+        <p class="text-xs text-gray-500"><span class="text-gray-300 mr-1">↳</span>{{ d.nome }} &bull; {{ d.get_tipo_display }} &bull; <span class="italic text-gray-400">mesma matrícula</span></p>
+      </div>
+      {% endfor %}
+      {% endfor %}
+      {% for d in principal.designacoes.all %}
+      <div class="border-t border-gray-100 px-4 py-2 bg-gray-50/50">
+        <p class="text-xs text-gray-500"><span class="text-gray-300 mr-1">↳</span>{{ d.nome }} &bull; {{ d.get_tipo_display }} &bull; <span class="italic text-gray-400">mesma matrícula</span></p>
+      </div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <div class="bg-white border border-gray-200 rounded-xl px-6 py-8 text-center text-gray-400 text-sm">
+    Nenhuma unidade cadastrada neste bloco.
+  </div>
+  {% endif %}
+
+</div>
+{% empty %}
+<div class="bg-white border border-gray-200 rounded-xl px-6 py-10 text-center text-gray-400 text-sm">
+  Nenhum bloco cadastrado neste empreendimento.
+</div>
+{% endfor %}
+
+{% endblock %}

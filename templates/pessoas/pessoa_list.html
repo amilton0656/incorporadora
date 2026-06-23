@@ -1,0 +1,164 @@
+{% extends 'base_intranet.html' %}
+{% block title %}Pessoas{% endblock %}
+
+{% block breadcrumb %}
+<nav class="text-sm text-gray-400 mb-6">
+  <a href="{% url 'intranet:welcome' %}" class="hover:text-brand transition">Início</a>
+  <span class="mx-2">/</span>
+  <span class="text-gray-700 font-medium">Pessoas</span>
+</nav>
+{% endblock %}
+
+{% block inner_content %}
+
+<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+  <h1 class="text-2xl font-semibold text-gray-800">Pessoas</h1>
+  <div class="flex flex-wrap gap-2">
+    <a href="{% url 'pessoas:pessoa_lista_pdf' %}{% if q %}?q={{ q }}{% endif %}{% if papel_filtro %}&papel={{ papel_filtro }}{% endif %}"
+       class="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2.5 border border-gray-300 text-gray-600 hover:bg-gray-50 rounded-lg transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+      </svg>
+      Exportar PDF
+    </a>
+    <a href="{% url 'pessoas:pessoa_create' %}"
+       class="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2.5 bg-brand hover:bg-brand-dark text-white rounded-lg transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+      </svg>
+      Nova pessoa
+    </a>
+  </div>
+</div>
+
+<!-- Filtros -->
+<form method="get" class="flex flex-col sm:flex-row gap-2 mb-6">
+  <input type="text" name="q" value="{{ q }}"
+         placeholder="Buscar por nome, CPF, CNPJ ou e-mail…"
+         class="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition">
+  {% if tipos_papel %}
+  <select name="papel"
+          class="px-4 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition">
+    <option value="">Todos os papéis</option>
+    {% for tp in tipos_papel %}
+    <option value="{{ tp.pk }}" {% if papel_filtro == tp.pk|stringformat:"s" %}selected{% endif %}>{{ tp.nome }}</option>
+    {% endfor %}
+  </select>
+  {% endif %}
+  <button type="submit"
+          class="px-4 py-2.5 bg-brand hover:bg-brand-dark text-white rounded-lg text-sm font-medium transition">
+    Buscar
+  </button>
+  {% if q or papel_filtro %}
+  <a href="{% url 'pessoas:pessoa_list' %}"
+     class="px-4 py-2.5 border border-gray-200 text-gray-500 hover:bg-gray-50 rounded-lg text-sm transition text-center">
+    Limpar
+  </a>
+  {% endif %}
+</form>
+
+{% if pessoas %}
+
+<!-- DESKTOP: tabela -->
+<div class="hidden sm:block bg-white border border-gray-200 rounded-xl overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 border-b border-gray-200">
+      <tr>
+        <th class="text-left px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide text-xs">Nome</th>
+        <th class="text-left px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide text-xs">Documento</th>
+        <th class="text-left px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide text-xs">Papéis</th>
+        <th class="text-left px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide text-xs">Contato</th>
+        <th class="text-left px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide text-xs">Cidade / UF</th>
+        <th class="px-4 py-3"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      {% for p in pessoas %}
+      <tr class="hover:bg-gray-50 transition">
+        <td class="px-4 py-3">
+          <p class="font-medium text-gray-800">{{ p.nome_exibicao }}</p>
+          <p class="text-xs text-gray-400 mt-0.5">
+            {% if p.tipo == 'pf' %}Pessoa Física{% else %}Pessoa Jurídica{% endif %}
+            {% if p.tipo == 'pj' and p.nome_fantasia %}&bull; {{ p.razao_social }}{% endif %}
+          </p>
+        </td>
+        <td class="px-4 py-3 text-gray-600 text-xs">{{ p.documento|default:'—' }}</td>
+        <td class="px-4 py-3">
+          <div class="flex flex-wrap gap-1">
+            {% for pp in p.papeis.all %}
+            <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-brand/10 text-brand">{{ pp.papel.nome }}</span>
+            {% empty %}
+            <span class="text-gray-300 text-xs">—</span>
+            {% endfor %}
+          </div>
+        </td>
+        <td class="px-4 py-3 text-gray-600 text-xs">
+          {% if p.celular %}{{ p.celular }}{% elif p.telefone %}{{ p.telefone }}{% else %}—{% endif %}
+          {% if p.email %}<br><span class="text-gray-400">{{ p.email }}</span>{% endif %}
+        </td>
+        <td class="px-4 py-3 text-gray-600 text-xs">
+          {% if p.cidade %}{{ p.cidade }}{% if p.estado %} / {{ p.estado }}{% endif %}{% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-3 text-right">
+          <a href="{% url 'pessoas:pessoa_detail' p.pk %}" class="text-brand hover:underline text-xs font-medium">Ver</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- MOBILE: cards -->
+<div class="sm:hidden flex flex-col gap-3">
+  {% for p in pessoas %}
+  <a href="{% url 'pessoas:pessoa_detail' p.pk %}"
+     class="bg-white border border-gray-200 rounded-xl p-4 hover:border-brand transition block">
+    <div class="flex items-start justify-between mb-2">
+      <div>
+        <p class="font-semibold text-gray-800">{{ p.nome_exibicao }}</p>
+        <p class="text-xs text-gray-400 mt-0.5">
+          {% if p.tipo == 'pf' %}PF{% else %}PJ{% endif %}
+          {% if p.documento %}&bull; {{ p.documento }}{% endif %}
+        </p>
+      </div>
+    </div>
+    <div class="flex flex-wrap gap-1 mb-2">
+      {% for pp in p.papeis.all %}
+      <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-brand/10 text-brand">{{ pp.papel.nome }}</span>
+      {% endfor %}
+    </div>
+    {% if p.celular or p.email %}
+    <p class="text-xs text-gray-500">{{ p.celular|default:p.telefone|default:'' }}{% if p.email %} &bull; {{ p.email }}{% endif %}</p>
+    {% endif %}
+  </a>
+  {% endfor %}
+</div>
+
+<!-- Paginação -->
+{% if is_paginated %}
+<div class="mt-6 flex items-center justify-center gap-1">
+  {% if page_obj.has_previous %}
+  <a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if papel_filtro %}&papel={{ papel_filtro }}{% endif %}"
+     class="px-3 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition">Anterior</a>
+  {% endif %}
+  <span class="px-3 py-1.5 text-sm text-gray-500">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}
+  <a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if papel_filtro %}&papel={{ papel_filtro }}{% endif %}"
+     class="px-3 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition">Próxima</a>
+  {% endif %}
+</div>
+{% endif %}
+
+{% else %}
+<div class="bg-white border border-gray-200 rounded-xl px-6 py-12 text-center text-gray-400 text-sm">
+  {% if q or papel_filtro %}
+    Nenhuma pessoa encontrada com os filtros aplicados.
+  {% else %}
+    Nenhuma pessoa cadastrada ainda.
+    <br>
+    <a href="{% url 'pessoas:pessoa_create' %}" class="text-brand hover:underline font-medium mt-2 inline-block">Cadastrar a primeira pessoa</a>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

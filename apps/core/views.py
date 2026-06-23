@@ -8,6 +8,7 @@ from django.utils import timezone
 from django.views.generic import CreateView, DetailView, ListView, UpdateView, View
 
 from .models import Empresa
+from .pdf import render_to_pdf
 
 # Campos que não vale a pena exibir como alteração comum
 _CAMPOS_IGNORADOS = {'deletado_em', 'deletado_por', 'atualizado_em', 'history_id', 'history_date', 'history_change_reason', 'history_type', 'history_user'}
@@ -196,18 +197,18 @@ def empresa_lista_pdf(request):
     qs = Empresa.objects.all()
     if q:
         qs = qs.filter(nome__icontains=q) | qs.filter(cnpj__icontains=q) | qs.filter(razao_social__icontains=q)
-    return render(request, 'core/empresa_lista_pdf.html', {'empresas': qs, 'q': q})
+    return render_to_pdf('core/empresa_lista_pdf.html', {'empresas': qs, 'q': q}, filename='empresas.pdf')
 
 
 def empresa_pdf(request, pk):
     empresa = get_object_or_404(Empresa.all_objects, pk=pk)
-    return render(request, 'core/empresa_pdf.html', {'empresa': empresa})
+    return render_to_pdf('core/empresa_pdf.html', {'empresa': empresa}, filename=f'empresa-{empresa.nome}.pdf')
 
 
 def empresa_historico_pdf(request, pk):
     empresa = get_object_or_404(Empresa.all_objects, pk=pk)
     history_entries = _build_history(empresa)
-    return render(request, 'core/empresa_historico_pdf.html', {
+    return render_to_pdf('core/empresa_historico_pdf.html', {
         'empresa': empresa,
         'history_entries': history_entries,
     })

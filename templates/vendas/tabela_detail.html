@@ -1,0 +1,182 @@
+{% extends 'base_intranet.html' %}
+{% load formatters %}
+{% block title %}{{ tabela.nome }} — {{ empreendimento.nome }}{% endblock %}
+
+{% block breadcrumb %}
+<nav class="text-sm text-gray-400 mb-6">
+  <a href="{% url 'intranet:welcome' %}" class="hover:text-brand transition">Início</a>
+  <span class="mx-2">/</span>
+  <a href="{% url 'empreendimentos:empreendimento_detail' empreendimento.pk %}" class="hover:text-brand transition">{{ empreendimento.nome }}</a>
+  <span class="mx-2">/</span>
+  <a href="{% url 'vendas:tabela_list' empreendimento.pk %}" class="hover:text-brand transition">Tabelas de Vendas</a>
+  <span class="mx-2">/</span>
+  <span class="text-gray-700 font-medium">{{ tabela.nome }}</span>
+</nav>
+{% endblock %}
+
+{% block inner_content %}
+
+<!-- Cabeçalho -->
+<div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+  <div>
+    <div class="flex items-center gap-3 mb-1">
+      <h1 class="text-2xl font-semibold text-gray-800">{{ tabela.nome }}</h1>
+      {% if tabela.deletado %}
+        <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-600">Excluída</span>
+      {% elif tabela.ativa %}
+        <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Ativa</span>
+      {% else %}
+        <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">Inativa</span>
+      {% endif %}
+    </div>
+    <p class="text-gray-400 text-sm">{{ empreendimento.nome }}
+      {% if tabela.vigencia_inicio or tabela.vigencia_fim %}
+      &mdash;
+      {% if tabela.vigencia_inicio %}{{ tabela.vigencia_inicio|date:'d/m/Y' }}{% endif %}
+      {% if tabela.vigencia_inicio and tabela.vigencia_fim %} a {% endif %}
+      {% if tabela.vigencia_fim %}{{ tabela.vigencia_fim|date:'d/m/Y' }}{% endif %}
+      {% endif %}
+    </p>
+  </div>
+  <div class="flex flex-wrap gap-2">
+    {% if not tabela.deletado %}
+    <a href="{% url 'vendas:tabela_update' empreendimento.pk tabela.pk %}"
+       class="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-gray-700">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+      </svg>
+      Editar
+    </a>
+    <a href="{% url 'vendas:tabela_delete' empreendimento.pk tabela.pk %}"
+       class="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+      </svg>
+      Excluir
+    </a>
+    {% endif %}
+    <a href="{% url 'vendas:tabela_pdf' empreendimento.pk tabela.pk %}"
+       class="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 bg-brand hover:bg-brand-dark text-white rounded-lg transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+      </svg>
+      Exportar PDF
+    </a>
+  </div>
+</div>
+
+<!-- Totalizador -->
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+  <div class="bg-white border border-gray-200 rounded-xl px-4 py-3">
+    <p class="text-xs text-gray-400 mb-1">Unidades</p>
+    <p class="text-sm font-semibold text-gray-800">{{ itens|length }}</p>
+  </div>
+  <div class="bg-brand/5 border border-brand/20 rounded-xl px-4 py-3 col-span-1 sm:col-span-3">
+    <p class="text-xs text-gray-400 mb-1">VGV da tabela</p>
+    <p class="text-base font-bold text-brand">{{ total_geral|brl_moeda }}</p>
+  </div>
+</div>
+
+{% if tabela.observacoes %}
+<div class="bg-white border border-gray-200 rounded-xl px-5 py-4 mb-6 text-sm text-gray-600">{{ tabela.observacoes }}</div>
+{% endif %}
+
+<!-- Tabela de itens -->
+{% if itens %}
+<div id="tabela-scroll" class="w-full bg-white border border-gray-200 rounded-xl overflow-x-auto cursor-grab active:cursor-grabbing select-none">
+  <table class="w-full text-xs whitespace-nowrap">
+    <thead class="bg-gray-50 border-b border-gray-200">
+      <tr>
+        <th class="text-left px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide sticky left-0 bg-gray-50 z-10">Unidade</th>
+        <th class="text-left px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Tipologia</th>
+        <th class="text-right px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Área Priv.</th>
+        <th class="text-right px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Área Total</th>
+        <th class="text-left px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Garagens</th>
+        <th class="text-left px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">HB</th>
+        <th class="text-right px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Ato</th>
+        <th class="text-right px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Parcelas</th>
+        <th class="text-right px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Reforços</th>
+        <th class="text-right px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Chaves</th>
+        <th class="text-right px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Financiamento</th>
+        <th class="text-right px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Total</th>
+        <th class="text-center px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Situação</th>
+        <th class="px-4 py-3"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      {% for item in itens %}
+      {% with u=item.unidade %}
+      <tr class="hover:bg-gray-50 transition">
+        <td class="px-4 py-3 font-semibold text-gray-800 sticky left-0 bg-white group-hover:bg-gray-50">{{ u.numero }}</td>
+        <td class="px-4 py-3 text-gray-600">{{ u.tipologia|default:'—' }}</td>
+        <td class="px-4 py-3 text-right text-gray-700">{{ u.area_privativa|brl_area:2 }}</td>
+        <td class="px-4 py-3 text-right text-gray-700">{{ u.area_total|brl_area:2 }}</td>
+        <td class="px-4 py-3 text-gray-600">
+          {% for d in u.designacoes.all %}{% if d.tipo == 'garagem_carro' or d.tipo == 'garagem_moto' %}{{ d.nome }}{% if not forloop.last %}, {% endif %}{% endif %}{% endfor %}
+          {% for c in u.complementares.all %}{% if c.tipo and 'aragem' in c.tipo.nome %}{{ c.numero }}{% endif %}{% endfor %}
+        </td>
+        <td class="px-4 py-3 text-gray-600">
+          {% for d in u.designacoes.all %}{% if d.tipo == 'hobby_box' %}{{ d.nome }}{% if not forloop.last %}, {% endif %}{% endif %}{% endfor %}
+        </td>
+        <td class="px-4 py-3 text-right text-gray-700">
+          {% if item.ato_qtd %}{{ item.ato_qtd }}×{{ item.ato_valor|brl_moeda }}{% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-3 text-right text-gray-700">
+          {% if item.parcelas_mensais_qtd %}{{ item.parcelas_mensais_qtd }}×{{ item.parcelas_mensais_valor|brl_moeda }}{% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-3 text-right text-gray-700">
+          {% if item.reforcos_qtd %}{{ item.reforcos_qtd }}×{{ item.reforcos_valor|brl_moeda }}{% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-3 text-right text-gray-700">
+          {% if item.chaves_valor %}{{ item.chaves_valor|brl_moeda }}{% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-3 text-right text-gray-700">
+          {% if item.financiamento_valor %}{{ item.financiamento_valor|brl_moeda }}{% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-3 text-right font-bold text-brand">{{ item.valor_total|brl_moeda }}</td>
+        <td class="px-4 py-3 text-center">
+          {% if u.status %}
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">{{ u.status }}</span>
+          {% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-3 text-right">
+          {% if not tabela.deletado %}
+          <a href="{% url 'vendas:tabela_item_update' empreendimento.pk tabela.pk item.pk %}"
+             class="text-brand hover:underline font-medium">Editar</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endwith %}
+      {% endfor %}
+    </tbody>
+    <tfoot class="border-t-2 border-brand/20 bg-brand/5">
+      <tr>
+        <td colspan="11" class="px-4 py-3 text-xs font-semibold text-brand text-right">Total Geral</td>
+        <td class="px-4 py-3 text-right font-bold text-brand">{{ total_geral|brl_moeda }}</td>
+        <td colspan="2"></td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+{% else %}
+<div class="bg-white border border-gray-200 rounded-xl px-6 py-10 text-center text-gray-400 text-sm">
+  Nenhuma unidade nesta tabela.
+</div>
+{% endif %}
+
+<script>
+(function () {
+  const el = document.getElementById('tabela-scroll');
+  if (!el) return;
+  let isDown = false, startX, scrollLeft;
+  el.addEventListener('mousedown', e => { isDown = true; startX = e.pageX - el.offsetLeft; scrollLeft = el.scrollLeft; });
+  el.addEventListener('mouseleave', () => isDown = false);
+  el.addEventListener('mouseup', () => isDown = false);
+  el.addEventListener('mousemove', e => {
+    if (!isDown) return;
+    e.preventDefault();
+    el.scrollLeft = scrollLeft - (e.pageX - el.offsetLeft - startX);
+  });
+})();
+</script>
+{% endblock %}

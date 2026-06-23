@@ -9,17 +9,16 @@
     header { border-bottom: 3px solid #1B3A6B; padding-bottom: 16px; margin-bottom: 24px; }
     header h1 { font-size: 20px; color: #1B3A6B; }
     header p { color: #6b7280; font-size: 11px; margin-top: 3px; }
-    h2 { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #6b7280; margin-bottom: 10px; margin-top: 20px; }
-    .section { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 14px; margin-bottom: 16px; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; }
-    .row { display: flex; flex-direction: column; gap: 2px; }
-    .row label { font-size: 9px; text-transform: uppercase; letter-spacing: .06em; color: #9ca3af; }
-    .row span { font-size: 12px; color: #1f2937; }
+    h2 { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #6b7280; margin-bottom: 8px; margin-top: 20px; }
+    .section { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 0; margin-bottom: 16px; }
+    .section table { width: 100%; border-collapse: collapse; }
+    .section td { padding: 10px 14px; vertical-align: top; }
+    .section label { font-size: 9px; text-transform: uppercase; letter-spacing: .06em; color: #9ca3af; display: block; margin-bottom: 2px; }
+    .section span { font-size: 12px; color: #1f2937; }
     .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 600; background: #f3f4f6; color: #6b7280; }
-    .full { grid-column: 1 / -1; }
-    footer { margin-top: 40px; border-top: 1px solid #e5e7eb; padding-top: 10px; font-size: 10px; color: #9ca3af; display: flex; justify-content: space-between; }
-    @media print { body { padding: 20px; } @page { margin: 1.5cm; } }
+    .footer-table { width: 100%; margin-top: 40px; border-top: 1px solid #e5e7eb; }
+    .footer-table td { font-size: 10px; color: #9ca3af; padding-top: 8px; }
+    @page { margin: 1.5cm; }
   </style>
 </head>
 <body>
@@ -33,40 +32,57 @@
 
 <h2>Identificação</h2>
 <div class="section">
-  <div class="grid">
-    <div class="row"><label>Número</label><span>{{ unidade.numero }}</span></div>
-    <div class="row"><label>Ordem</label><span>{{ unidade.ordem }}</span></div>
-    <div class="row"><label>Tipo</label><span>{{ unidade.tipo|default:'—' }}</span></div>
-    <div class="row"><label>Tipologia</label><span>{{ unidade.tipologia|default:'—' }}</span></div>
-    <div class="row"><label>Localização</label><span>{{ unidade.localizacao|default:'—' }}</span></div>
-  </div>
+  <table>
+    <tr>
+      <td><label>Número</label><span>{{ unidade.numero }}</span></td>
+      <td><label>Ordem</label><span>{{ unidade.ordem }}</span></td>
+    </tr>
+    <tr>
+      <td><label>Tipo</label><span>{{ unidade.tipo|default:'—' }}</span></td>
+      <td><label>Tipologia</label><span>{{ unidade.tipologia|default:'—' }}</span></td>
+    </tr>
+    <tr>
+      <td colspan="2"><label>Localização</label><span>{{ unidade.localizacao|default:'—' }}</span></td>
+    </tr>
+  </table>
 </div>
 
 <h2>Áreas (m²)</h2>
 <div class="section">
-  <div class="grid-4">
-    <div class="row"><label>Área privativa</label><span>{{ unidade.area_privativa|default:'—' }}</span></div>
-    <div class="row"><label>Área priv. acessória</label><span>{{ unidade.area_privativa_acessoria|default:'—' }}</span></div>
-    <div class="row"><label>Área comum</label><span>{{ unidade.area_comum|default:'—' }}</span></div>
-    <div class="row"><label>Fração ideal</label><span>{{ unidade.fracao_ideal|default:'—' }}</span></div>
-  </div>
+  <table>
+    <tr>
+      <td><label>Área privativa</label><span>{{ unidade.area_privativa|brl_area:2 }}</span></td>
+      <td><label>Área priv. acessória</label><span>{{ unidade.area_privativa_acessoria|brl_area:2 }}</span></td>
+      <td><label>Área comum</label><span>{{ unidade.area_comum|brl_area:2 }}</span></td>
+      <td><label>Fração ideal</label><span>{{ unidade.fracao_ideal|brl_area:6 }}</span></td>
+    </tr>
+  </table>
 </div>
 
 <h2>Informações comerciais</h2>
 <div class="section">
-  <div class="grid">
-    <div class="row full"><label>Valor tabela</label><span>{{ unidade.valor_tabela|brl_moeda }}</span></div>
-    {% if unidade.descricao_1 %}<div class="row full"><label>Descrição 1</label><span>{{ unidade.descricao_1 }}</span></div>{% endif %}
-    {% if unidade.descricao_2 %}<div class="row full"><label>Descrição 2</label><span>{{ unidade.descricao_2 }}</span></div>{% endif %}
-    {% if unidade.descricao_3 %}<div class="row full"><label>Descrição 3</label><span>{{ unidade.descricao_3 }}</span></div>{% endif %}
-  </div>
+  <table>
+    <tr>
+      <td colspan="2"><label>Valor tabela</label><span>{{ unidade.valor_tabela|brl_moeda }}</span></td>
+    </tr>
+    {% if unidade.descricao_1 %}
+    <tr><td colspan="2"><label>Descrição 1</label><span>{{ unidade.descricao_1 }}</span></td></tr>
+    {% endif %}
+    {% if unidade.descricao_2 %}
+    <tr><td colspan="2"><label>Descrição 2</label><span>{{ unidade.descricao_2 }}</span></td></tr>
+    {% endif %}
+    {% if unidade.descricao_3 %}
+    <tr><td colspan="2"><label>Descrição 3</label><span>{{ unidade.descricao_3 }}</span></td></tr>
+    {% endif %}
+  </table>
 </div>
 
-<footer>
-  <span>Gerado em {% now "d/m/Y H:i" %}</span>
-  <span>Cadastrada em {{ unidade.criado_em|date:'d/m/Y' }}</span>
-</footer>
+<table class="footer-table">
+  <tr>
+    <td>Gerado em {% now "d/m/Y H:i" %}</td>
+    <td style="text-align:right;">Cadastrada em {{ unidade.criado_em|date:'d/m/Y' }}</td>
+  </tr>
+</table>
 
-<script>window.onload = function(){ window.print(); }</script>
 </body>
 </html>

@@ -1,0 +1,74 @@
+{% extends 'base_intranet.html' %}
+{% block title %}Tipos de Papel{% endblock %}
+
+{% block breadcrumb %}
+<nav class="text-sm text-gray-400 mb-6">
+  <a href="{% url 'intranet:welcome' %}" class="hover:text-brand transition">Início</a>
+  <span class="mx-2">/</span>
+  <span class="text-gray-700 font-medium">Tipos de papel</span>
+</nav>
+{% endblock %}
+
+{% block inner_content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-semibold text-gray-800">Tipos de papel</h1>
+  <div class="flex gap-2">
+  <a href="{% url 'pessoas:tipo_papel_lista_pdf' %}"
+     class="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 border border-gray-300 text-gray-600 hover:bg-gray-50 rounded-lg transition">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+    </svg>
+    Exportar PDF
+  </a>
+  <a href="{% url 'pessoas:tipo_papel_create' %}"
+     class="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 bg-brand hover:bg-brand-dark text-white rounded-lg transition">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+    </svg>
+    Novo tipo
+  </a>
+  </div>
+</div>
+
+{% if tipos %}
+<div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 border-b border-gray-200">
+      <tr>
+        <th class="text-left px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide text-xs">Nome</th>
+        <th class="text-right px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide text-xs">Pessoas</th>
+        <th class="px-4 py-3"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      {% for tipo in tipos %}
+      <tr class="hover:bg-gray-50 transition">
+        <td class="px-4 py-3 font-medium text-gray-800">{{ tipo.nome }}</td>
+        <td class="px-4 py-3 text-right text-gray-500">{{ tipo.pessoa_papeis.count }}</td>
+        <td class="px-4 py-3 text-right">
+          <div class="flex items-center justify-end gap-3">
+            <a href="{% url 'pessoas:tipo_papel_update' tipo.pk %}" class="text-gray-400 hover:text-brand transition" title="Editar">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+              </svg>
+            </a>
+            <a href="{% url 'pessoas:tipo_papel_delete' tipo.pk %}" class="text-gray-400 hover:text-red-500 transition" title="Excluir">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+              </svg>
+            </a>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="bg-white border border-gray-200 rounded-xl px-6 py-12 text-center text-gray-400 text-sm">
+  Nenhum tipo de papel cadastrado ainda.
+  <br>
+  <a href="{% url 'pessoas:tipo_papel_create' %}" class="text-brand hover:underline font-medium mt-2 inline-block">Cadastrar o primeiro</a>
+</div>
+{% endif %}
+{% endblock %}

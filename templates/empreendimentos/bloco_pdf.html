@@ -2,17 +2,17 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>{{ empreendimento.nome }} — Empreendimento</title>
+  <title>{{ bloco.nome }} — {{ empreendimento.nome }}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: Arial, sans-serif; font-size: 11px; color: #1f2937; padding: 40px; }
     header { border-bottom: 3px solid #1B3A6B; padding-bottom: 16px; margin-bottom: 24px; }
     header h1 { font-size: 20px; color: #1B3A6B; }
     header p { color: #6b7280; font-size: 11px; margin-top: 3px; }
-    .info-table { width: 100%; border-collapse: collapse; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; margin-bottom: 24px; }
-    .info-table td { padding: 10px 12px; vertical-align: top; }
+    .info-table { width: 100%; border-collapse: collapse; background: #f9fafb; border: 1px solid #e5e7eb; margin-bottom: 24px; }
+    .info-table td { padding: 10px 12px; vertical-align: top; width: 33%; }
     .info-table label { font-size: 9px; text-transform: uppercase; color: #9ca3af; display: block; margin-bottom: 2px; }
-    .info-table span { font-size: 12px; }
+    .info-table span { font-size: 12px; font-weight: 600; }
     h2 { font-size: 13px; font-weight: 700; color: #1B3A6B; margin: 24px 0 8px; border-left: 3px solid #1B3A6B; padding-left: 8px; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
     thead th { background: #1B3A6B; color: #fff; font-size: 8px; text-transform: uppercase; letter-spacing: .05em; padding: 5px 6px; text-align: right; }
@@ -20,7 +20,6 @@
     tbody td { padding: 5px 6px; border-bottom: 1px solid #e5e7eb; font-size: 10px; text-align: right; }
     tbody td:first-child, tbody td:nth-child(2), tbody td:nth-child(3), tbody td:nth-child(4) { text-align: left; }
     tbody tr:nth-child(even) { background: #f9fafb; }
-    .tr-subtotal td { background: #eef2f9; font-weight: 700; font-size: 10px; border-top: 2px solid #1B3A6B; border-bottom: 2px solid #1B3A6B; }
     .tr-total td { background: #1B3A6B; color: #fff; font-weight: 700; font-size: 10px; }
     .badge { display: inline-block; padding: 1px 7px; border-radius: 20px; font-size: 9px; font-weight: 600; background: #e5e7eb; color: #374151; }
     .empty { color: #9ca3af; font-size: 11px; margin-bottom: 16px; padding-left: 8px; }
@@ -32,20 +31,20 @@
 <body>
 
 <header>
-  <h1>{{ empreendimento.nome }}</h1>
-  <p>{{ empreendimento.empresa.nome }}</p>
+  <h1>{{ bloco.nome }}</h1>
+  <p>{{ empreendimento.nome }} &mdash; {{ empreendimento.empresa.nome }}</p>
 </header>
 
 <table class="info-table">
   <tr>
-    <td><label>Status</label><span>{{ empreendimento.get_status_display }}</span></td>
-    <td><label>Cadastrado em</label><span>{{ empreendimento.criado_em|date:'d/m/Y' }}</span></td>
+    <td><label>Empreendimento</label><span>{{ empreendimento.nome }}</span></td>
+    <td><label>Bloco</label><span>{{ bloco.nome }}</span></td>
+    <td><label>Total de unidades</label><span>{{ unidades|length }}</span></td>
   </tr>
 </table>
 
-{% for item in blocos_dados %}
-<h2>{{ item.bloco.nome }}</h2>
-{% if item.bloco.unidades.all %}
+{% if unidades %}
+<h2>Unidades</h2>
 <table>
   <thead>
     <tr>
@@ -62,7 +61,7 @@
     </tr>
   </thead>
   <tbody>
-    {% for u in item.bloco.unidades.all %}
+    {% for u in unidades %}
     <tr>
       <td>{{ u.numero }}</td>
       <td>{{ u.tipo|default:'—' }}</td>
@@ -76,55 +75,25 @@
       <td>{{ u.valor_tabela|brl_moeda }}</td>
     </tr>
     {% endfor %}
-    <tr class="tr-subtotal">
-      <td colspan="4">Total {{ item.bloco.nome }}</td>
-      <td>{{ item.totais.area_privativa|brl_area:2 }}</td>
-      <td>{{ item.totais.area_privativa_acessoria|brl_area:2 }}</td>
-      <td>{{ item.totais.area_comum|brl_area:2 }}</td>
-      <td>{{ item.totais.area_total|brl_area:2 }}</td>
-      <td>{{ item.totais.fracao_ideal|brl_area:6 }}</td>
-      <td>{{ item.totais.vgv|brl_moeda }}</td>
+    <tr class="tr-total">
+      <td colspan="4">Total {{ bloco.nome }}</td>
+      <td>{{ totais.area_privativa|brl_area:2 }}</td>
+      <td>{{ totais.area_privativa_acessoria|brl_area:2 }}</td>
+      <td>{{ totais.area_comum|brl_area:2 }}</td>
+      <td>{{ totais.area_real_total|brl_area:2 }}</td>
+      <td>{{ totais.fracao_ideal|brl_area:6 }}</td>
+      <td>{{ totais.vgv|brl_moeda }}</td>
     </tr>
   </tbody>
 </table>
 {% else %}
-<p class="empty">Nenhuma unidade cadastrada.</p>
-{% endif %}
-{% empty %}
-<p class="empty">Nenhum bloco cadastrado.</p>
-{% endfor %}
-
-{% if blocos_dados %}
-<table style="margin-top: 16px;">
-  <thead>
-    <tr>
-      <th colspan="4">Total Geral</th>
-      <th>Área Priv. (m²)</th>
-      <th>Área Priv. Acess. (m²)</th>
-      <th>Área Comum (m²)</th>
-      <th>Área Total (m²)</th>
-      <th>Fração Ideal</th>
-      <th>Valor Tabela</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr class="tr-total">
-      <td colspan="4">{{ empreendimento.nome }}</td>
-      <td>{{ totais_gerais.area_privativa|brl_area:2 }}</td>
-      <td>{{ totais_gerais.area_privativa_acessoria|brl_area:2 }}</td>
-      <td>{{ totais_gerais.area_comum|brl_area:2 }}</td>
-      <td>{{ totais_gerais.area_total|brl_area:2 }}</td>
-      <td>{{ totais_gerais.fracao_ideal|brl_area:6 }}</td>
-      <td>{{ totais_gerais.vgv|brl_moeda }}</td>
-    </tr>
-  </tbody>
-</table>
+<p class="empty">Nenhuma unidade cadastrada neste bloco.</p>
 {% endif %}
 
 <table class="footer-table">
   <tr>
     <td>Gerado em {% now "d/m/Y H:i" %}</td>
-    <td style="text-align:right;">{{ empreendimento.nome }}</td>
+    <td style="text-align:right;">{{ empreendimento.nome }} / {{ bloco.nome }}</td>
   </tr>
 </table>
 

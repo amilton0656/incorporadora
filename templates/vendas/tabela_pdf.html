@@ -1,0 +1,115 @@
+{% load formatters %}<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ tabela.nome }} — {{ empreendimento.nome }}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; font-size: 9px; color: #1f2937; padding: 30px; }
+    header { border-bottom: 3px solid #1B3A6B; padding-bottom: 12px; margin-bottom: 16px; }
+    header h1 { font-size: 16px; color: #1B3A6B; }
+    header p { color: #6b7280; font-size: 10px; margin-top: 2px; }
+    .info-table { width: 100%; border-collapse: collapse; background: #f9fafb; border: 1px solid #e5e7eb; margin-bottom: 16px; }
+    .info-table td { padding: 6px 10px; vertical-align: top; }
+    .info-table label { font-size: 8px; text-transform: uppercase; color: #9ca3af; display: block; margin-bottom: 1px; }
+    .badge { display: inline-block; padding: 1px 6px; border-radius: 10px; font-size: 8px; font-weight: 700; }
+    .badge-green { background: #dcfce7; color: #15803d; }
+    .badge-gray  { background: #f3f4f6; color: #6b7280; }
+    table.main { width: 100%; border-collapse: collapse; }
+    table.main thead th { background: #1B3A6B; color: #fff; font-size: 7px; text-transform: uppercase; letter-spacing: .04em; padding: 4px 5px; text-align: right; white-space: nowrap; }
+    table.main thead th.left { text-align: left; }
+    table.main thead th.center { text-align: center; }
+    table.main tbody td { padding: 4px 5px; border-bottom: 1px solid #e5e7eb; font-size: 8px; text-align: right; white-space: nowrap; }
+    table.main tbody td.left { text-align: left; }
+    table.main tbody td.center { text-align: center; }
+    table.main tbody tr:nth-child(even) { background: #f9fafb; }
+    .tr-total td { background: #1B3A6B; color: #fff; font-weight: 700; font-size: 8px; }
+    .badge-status { display: inline-block; padding: 1px 5px; border-radius: 8px; font-size: 7px; font-weight: 600; background: #e5e7eb; color: #374151; }
+    .footer-table { width: 100%; margin-top: 20px; border-top: 1px solid #e5e7eb; }
+    .footer-table td { font-size: 8px; color: #9ca3af; padding-top: 6px; }
+    @page { margin: 1cm; size: A4 landscape; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>{{ tabela.nome }}</h1>
+  <p>{{ empreendimento.nome }} &mdash; {{ empreendimento.empresa.nome }}
+    &nbsp;&bull;&nbsp;
+    <span class="badge {% if tabela.ativa %}badge-green{% else %}badge-gray{% endif %}">{% if tabela.ativa %}Ativa{% else %}Inativa{% endif %}</span>
+    {% if tabela.vigencia_inicio or tabela.vigencia_fim %}
+    &nbsp;&bull;&nbsp; Vigência:
+    {% if tabela.vigencia_inicio %}{{ tabela.vigencia_inicio|date:'d/m/Y' }}{% endif %}
+    {% if tabela.vigencia_inicio and tabela.vigencia_fim %} a {% endif %}
+    {% if tabela.vigencia_fim %}{{ tabela.vigencia_fim|date:'d/m/Y' }}{% endif %}
+    {% endif %}
+  </p>
+</header>
+
+<table class="main">
+  <thead>
+    <tr>
+      <th class="left">Unidade</th>
+      <th class="left">Tipologia</th>
+      <th>Área Priv. (m²)</th>
+      <th>Área Total (m²)</th>
+      <th class="left">Garagens</th>
+      <th class="left">HB</th>
+      <th>Ato (qtd×valor)</th>
+      <th>Parcelas (qtd×valor)</th>
+      <th>Reforços (qtd×valor)</th>
+      <th>Chaves</th>
+      <th>Financiamento</th>
+      <th>Total</th>
+      <th class="center">Situação</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in itens %}
+    {% with u=item.unidade %}
+    <tr>
+      <td class="left"><strong>{{ u.numero }}</strong></td>
+      <td class="left">{{ u.tipologia|default:'—' }}</td>
+      <td>{{ u.area_privativa|brl_area:2 }}</td>
+      <td>{{ u.area_total|brl_area:2 }}</td>
+      <td class="left">
+        {% for d in u.designacoes.all %}{% if d.tipo == 'garagem_carro' or d.tipo == 'garagem_moto' %}{{ d.nome }} {% endif %}{% endfor %}
+      </td>
+      <td class="left">
+        {% for d in u.designacoes.all %}{% if d.tipo == 'hobby_box' %}{{ d.nome }} {% endif %}{% endfor %}
+      </td>
+      <td>
+        {% if item.ato_qtd %}{{ item.ato_qtd }}×{{ item.ato_valor|brl_moeda }}{% else %}—{% endif %}
+      </td>
+      <td>
+        {% if item.parcelas_mensais_qtd %}{{ item.parcelas_mensais_qtd }}×{{ item.parcelas_mensais_valor|brl_moeda }}{% else %}—{% endif %}
+      </td>
+      <td>
+        {% if item.reforcos_qtd %}{{ item.reforcos_qtd }}×{{ item.reforcos_valor|brl_moeda }}{% else %}—{% endif %}
+      </td>
+      <td>{% if item.chaves_valor %}{{ item.chaves_valor|brl_moeda }}{% else %}—{% endif %}</td>
+      <td>{% if item.financiamento_valor %}{{ item.financiamento_valor|brl_moeda }}{% else %}—{% endif %}</td>
+      <td><strong>{{ item.valor_total|brl_moeda }}</strong></td>
+      <td class="center">
+        {% if u.status %}<span class="badge-status">{{ u.status }}</span>{% else %}—{% endif %}
+      </td>
+    </tr>
+    {% endwith %}
+    {% endfor %}
+    <tr class="tr-total">
+      <td colspan="11" class="left">Total Geral — {{ itens|length }} unidade{{ itens|length|pluralize }}</td>
+      <td>{{ total_geral|brl_moeda }}</td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+
+<table class="footer-table">
+  <tr>
+    <td>Gerado em {% now "d/m/Y H:i" %}</td>
+    <td style="text-align:right;">{{ tabela.nome }} &mdash; {{ empreendimento.nome }}</td>
+  </tr>
+</table>
+
+</body>
+</html>

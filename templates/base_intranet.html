@@ -21,6 +21,10 @@
              class="px-3 py-1.5 rounded text-blue-200 hover:text-white hover:bg-brand-light transition">
             Empreendimentos
           </a>
+          <a href="{% url 'pessoas:pessoa_list' %}"
+             class="px-3 py-1.5 rounded text-blue-200 hover:text-white hover:bg-brand-light transition">
+            Pessoas
+          </a>
           <!-- Dropdown Configurações -->
           <div class="relative group">
             <button class="flex items-center gap-1 px-3 py-1.5 rounded text-blue-200 hover:text-white hover:bg-brand-light transition">
@@ -38,6 +42,11 @@
               <a href="{% url 'empreendimentos:status_unidade_list' %}"
                  class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition">
                 Status de unidade
+              </a>
+              <div class="border-t border-gray-100 my-1"></div>
+              <a href="{% url 'pessoas:tipo_papel_list' %}"
+                 class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition">
+                Tipos de papel
               </a>
             </div>
           </div>

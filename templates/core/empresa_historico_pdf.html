@@ -1,5 +1,4 @@
-{% load formatters %}
-<!DOCTYPE html>
+{% load formatters %}<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -7,48 +6,36 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: Arial, sans-serif; font-size: 12px; color: #1f2937; padding: 40px; }
-
     header { border-bottom: 3px solid #1B3A6B; padding-bottom: 16px; margin-bottom: 24px; }
     header h1 { font-size: 20px; color: #1B3A6B; }
     header p { color: #6b7280; font-size: 11px; margin-top: 2px; }
     header .meta { font-size: 10px; color: #9ca3af; margin-top: 6px; }
-
     .entry { border: 1px solid #e5e7eb; border-radius: 6px; margin-bottom: 12px; overflow: hidden; page-break-inside: avoid; }
-
-    .entry-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; font-size: 11px; }
+    .entry-header { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .entry-header td { padding: 8px 12px; }
     .entry-header.create  { background: #f0fdf4; border-bottom: 1px solid #bbf7d0; }
     .entry-header.edit    { background: #eff6ff; border-bottom: 1px solid #bfdbfe; }
     .entry-header.delete  { background: #fef2f2; border-bottom: 1px solid #fecaca; }
     .entry-header.restore { background: #f0fdfa; border-bottom: 1px solid #99f6e4; }
     .entry-header.perm    { background: #fef2f2; border-bottom: 1px solid #fecaca; }
-
     .badge { display: inline-block; padding: 1px 7px; border-radius: 12px; font-size: 10px; font-weight: 700; }
     .badge-green  { background: #dcfce7; color: #15803d; }
     .badge-blue   { background: #dbeafe; color: #1d4ed8; }
     .badge-red    { background: #fee2e2; color: #dc2626; }
     .badge-teal   { background: #ccfbf1; color: #0f766e; }
-
-    .entry-user { color: #6b7280; }
+    .entry-user { color: #6b7280; text-align: right; }
     .entry-user strong { color: #374151; }
-
-    table { width: 100%; border-collapse: collapse; font-size: 11px; }
-    table td { padding: 5px 12px; vertical-align: top; }
-    table tr:not(:last-child) td { border-bottom: 1px solid #f3f4f6; }
+    .changes { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .changes td { padding: 5px 12px; vertical-align: top; }
+    .changes tr:not(:last-child) td { border-bottom: 1px solid #f3f4f6; }
     .col-label { width: 30%; font-weight: 600; color: #4b5563; }
     .col-old   { width: 30%; color: #ef4444; text-decoration: line-through; }
     .col-new   { width: 40%; color: #166534; font-weight: 600; }
-    .col-arrow { width: 0; color: #9ca3af; padding: 5px 4px; }
-
     .msg { padding: 7px 12px; font-size: 11px; color: #6b7280; }
-
     .no-history { text-align: center; padding: 30px; color: #9ca3af; font-size: 12px; }
-
-    footer { margin-top: 32px; border-top: 1px solid #e5e7eb; padding-top: 10px; font-size: 10px; color: #9ca3af; display: flex; justify-content: space-between; }
-
-    @media print {
-      body { padding: 20px; }
-      @page { margin: 1.5cm; }
-    }
+    .footer-table { width: 100%; margin-top: 32px; border-top: 1px solid #e5e7eb; }
+    .footer-table td { font-size: 10px; color: #9ca3af; padding-top: 8px; }
+    @page { margin: 1.5cm; }
   </style>
 </head>
 <body>
@@ -67,52 +54,35 @@
   {% for entry in history_entries %}
   <div class="entry">
 
-    <div class="entry-header
-      {% if entry.tipo == '+' %}create
-      {% elif entry.tipo == '~' %}edit
-      {% elif entry.tipo == 'soft_delete' %}delete
-      {% elif entry.tipo == 'restore' %}restore
-      {% else %}perm{% endif %}">
-
-      <div>
-        {% if entry.tipo == '+' %}
-          <span class="badge badge-green">Criação</span>
-        {% elif entry.tipo == '~' %}
-          <span class="badge badge-blue">Edição</span>
-        {% elif entry.tipo == 'soft_delete' %}
-          <span class="badge badge-red">Excluída</span>
-        {% elif entry.tipo == 'restore' %}
-          <span class="badge badge-teal">Restaurada</span>
-        {% else %}
-          <span class="badge badge-red">Exclusão permanente</span>
-        {% endif %}
-        &nbsp; {{ entry.record.history_date|date:'d/m/Y \à\s H:i' }}
-      </div>
-
-      <div class="entry-user">
-        por <strong>{{ entry.record.history_user|default:'sistema' }}</strong>
-      </div>
-    </div>
+    <table class="entry-header {% if entry.tipo == '+' %}create{% elif entry.tipo == '~' %}edit{% elif entry.tipo == 'soft_delete' %}delete{% elif entry.tipo == 'restore' %}restore{% else %}perm{% endif %}">
+      <tr>
+        <td>
+          {% if entry.tipo == '+' %}<span class="badge badge-green">Criação</span>
+          {% elif entry.tipo == '~' %}<span class="badge badge-blue">Edição</span>
+          {% elif entry.tipo == 'soft_delete' %}<span class="badge badge-red">Excluída</span>
+          {% elif entry.tipo == 'restore' %}<span class="badge badge-teal">Restaurada</span>
+          {% else %}<span class="badge badge-red">Exclusão permanente</span>{% endif %}
+          &nbsp; {{ entry.record.history_date|date:'d/m/Y \à\s H:i' }}
+        </td>
+        <td class="entry-user">por <strong>{{ entry.record.history_user|default:'sistema' }}</strong></td>
+      </tr>
+    </table>
 
     {% if entry.alteracoes %}
-    <table>
+    <table class="changes">
       {% for alt in entry.alteracoes %}
       <tr>
         <td class="col-label">{{ alt.campo }}</td>
         <td class="col-old">{{ alt.de }}</td>
-        <td class="col-arrow">→</td>
+        <td style="width:0; color:#9ca3af; padding:5px 4px;">→</td>
         <td class="col-new">{{ alt.para }}</td>
       </tr>
       {% endfor %}
     </table>
-    {% elif entry.tipo == '+' %}
-      <p class="msg">Registro criado.</p>
-    {% elif entry.tipo == 'soft_delete' %}
-      <p class="msg">Empresa movida para a lixeira.</p>
-    {% elif entry.tipo == 'restore' %}
-      <p class="msg">Empresa restaurada da lixeira.</p>
-    {% else %}
-      <p class="msg">Registro excluído permanentemente.</p>
+    {% elif entry.tipo == '+' %}<p class="msg">Registro criado.</p>
+    {% elif entry.tipo == 'soft_delete' %}<p class="msg">Empresa movida para a lixeira.</p>
+    {% elif entry.tipo == 'restore' %}<p class="msg">Empresa restaurada da lixeira.</p>
+    {% else %}<p class="msg">Registro excluído permanentemente.</p>
     {% endif %}
 
   </div>
@@ -121,11 +91,12 @@
   <div class="no-history">Nenhum registro de histórico encontrado.</div>
 {% endif %}
 
-<footer>
-  <span>Gerado em {% now "d/m/Y H:i" %}</span>
-  <span>{{ history_entries|length }} registro{{ history_entries|length|pluralize }} no histórico</span>
-</footer>
+<table class="footer-table">
+  <tr>
+    <td>Gerado em {% now "d/m/Y H:i" %}</td>
+    <td style="text-align:right;">{{ history_entries|length }} registro{{ history_entries|length|pluralize }} no histórico</td>
+  </tr>
+</table>
 
-<script>window.onload = function(){ window.print(); }</script>
 </body>
 </html>

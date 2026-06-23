@@ -1,5 +1,4 @@
-{% load formatters %}
-<!DOCTYPE html>
+{% load formatters %}<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -19,12 +18,9 @@
     .badge { display: inline-block; padding: 1px 7px; border-radius: 20px; font-size: 9px; font-weight: 600; }
     .badge-green { background: #dcfce7; color: #15803d; }
     .badge-gray  { background: #f3f4f6; color: #6b7280; }
-    footer { margin-top: 32px; border-top: 1px solid #e5e7eb; padding-top: 10px; font-size: 10px; color: #9ca3af; display: flex; justify-content: space-between; }
-    @media print {
-      body { padding: 20px; }
-      @page { margin: 1.5cm; size: landscape; }
-      thead { display: table-header-group; }
-    }
+    .footer-table { width: 100%; margin-top: 32px; border-top: 1px solid #e5e7eb; }
+    .footer-table td { font-size: 10px; color: #9ca3af; padding-top: 8px; }
+    @page { margin: 1.5cm; size: landscape; }
   </style>
 </head>
 <body>
@@ -55,9 +51,7 @@
         <div class="razao">{{ empresa.razao_social }}</div>
       </td>
       <td>{{ empresa.cnpj|format_cnpj }}</td>
-      <td>
-        {% if empresa.cidade %}{{ empresa.cidade }}{% if empresa.estado %} / {{ empresa.estado }}{% endif %}{% else %}—{% endif %}
-      </td>
+      <td>{% if empresa.cidade %}{{ empresa.cidade }}{% if empresa.estado %} / {{ empresa.estado }}{% endif %}{% else %}—{% endif %}</td>
       <td>{{ empresa.telefone|format_phone|default:'—' }}</td>
       <td>
         {% if empresa.ativo %}
@@ -75,11 +69,12 @@
   </tbody>
 </table>
 
-<footer>
-  <span>Gerado em {% now "d/m/Y H:i" %}</span>
-  <span>Total: {{ empresas|length }} empresa{{ empresas|length|pluralize }}</span>
-</footer>
+<table class="footer-table">
+  <tr>
+    <td>Gerado em {% now "d/m/Y H:i" %}</td>
+    <td style="text-align:right;">Total: {{ empresas|length }} empresa{{ empresas|length|pluralize }}</td>
+  </tr>
+</table>
 
-<script>window.onload = function(){ window.print(); }</script>
 </body>
 </html>

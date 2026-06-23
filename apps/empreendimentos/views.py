@@ -16,6 +16,7 @@ from django.db.models import Q
 
 from apps.core.mixins import EmpresaQuerysetMixin
 from apps.core.models import Empresa
+from apps.core.pdf import render_to_pdf
 from .models import Bloco, DesignacaoUnidade, Empreendimento, StatusUnidade, TipoUnidade, Unidade
 
 _TIPO_DESIGNACAO_LABEL = {
@@ -231,6 +232,99 @@ class EmpreendimentoRestoreView(LoginRequiredMixin, View):
         return redirect('empreendimentos:empreendimento_detail', pk=obj.pk)
 
 
+class EmpreendimentoVinculosView(LoginRequiredMixin, DetailView):
+    model = Empreendimento
+    template_name = 'empreendimentos/empreendimento_vinculos.html'
+    context_object_name = 'empreendimento'
+
+    def get_object(self):
+        return get_object_or_404(Empreendimento.all_objects, pk=self.kwargs['pk'])
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+
+        unidades_qs = (
+            Unidade.objects
+            .select_related('status', 'tipo', 'unidade_principal')
+            .prefetch_related(
+                Prefetch('complementares', queryset=Unidade.objects.select_related('status', 'tipo').order_by('ordem', 'numero')),
+                'designacoes',
+            )
+            .order_by('ordem', 'numero')
+        )
+
+        blocos = self.object.blocos.prefetch_related(
+            Prefetch('unidades', queryset=unidades_qs)
+        ).all()
+
+        blocos_dados = []
+        for bloco in blocos:
+            unidades = list(bloco.unidades.all())
+            principais = [u for u in unidades if u.unidade_principal_id is None]
+            sem_vinculo = [u for u in unidades if u.unidade_principal_id is not None and u.complementares.count() == 0]
+            total_vinculos = sum(u.complementares.count() for u in principais)
+            blocos_dados.append({
+                'bloco': bloco,
+                'principais': principais,
+                'sem_vinculo_count': len([u for u in unidades if u.unidade_principal_id is not None]),
+                'total_vinculos': total_vinculos,
+            })
+
+        ctx['blocos_dados'] = blocos_dados
+        return ctx
+
+
+class EmpreendimentoUnidadesListView(LoginRequiredMixin, DetailView):
+    model = Empreendimento
+    template_name = 'empreendimentos/empreendimento_unidades.html'
+    context_object_name = 'empreendimento'
+
+    def get_object(self):
+        return get_object_or_404(Empreendimento.all_objects, pk=self.kwargs['pk'])
+
+    def get_context_data(self, **kwargs):
+        from django.db.models import Sum
+        ctx = super().get_context_data(**kwargs)
+
+        unidades_qs = Unidade.objects.select_related('status', 'tipo').order_by('ordem', 'numero')
+        blocos = list(self.object.blocos.prefetch_related(
+            Prefetch('unidades', queryset=unidades_qs)
+        ).all())
+
+        def _totais(qs):
+            t = qs.aggregate(
+                ap=Sum('area_privativa'),
+                apa=Sum('area_privativa_acessoria'),
+                ac=Sum('area_comum'),
+                fi=Sum('fracao_ideal'),
+                vgv=Sum('valor_tabela'),
+            )
+            ap  = t['ap']  or 0
+            apa = t['apa'] or 0
+            ac  = t['ac']  or 0
+            return {
+                'area_privativa':           ap,
+                'area_privativa_acessoria': apa,
+                'area_comum':               ac,
+                'area_real_total':          ap + apa + ac,
+                'fracao_ideal':             t['fi']  or 0,
+                'vgv':                      t['vgv'] or 0,
+            }
+
+        blocos_dados = []
+        for bloco in blocos:
+            qs = Unidade.objects.filter(bloco=bloco)
+            blocos_dados.append({
+                'bloco': bloco,
+                'unidades': list(bloco.unidades.all()),
+                'totais': _totais(qs),
+            })
+
+        ctx['blocos_dados'] = blocos_dados
+        ctx['totais_gerais'] = _totais(Unidade.objects.filter(bloco__empreendimento=self.object))
+        return ctx
+
+
 @login_required
 def empreendimento_lista_pdf(request):
     empresa = _get_empresa_atual(request)
@@ -238,7 +332,7 @@ def empreendimento_lista_pdf(request):
     qs = Empreendimento.objects.filter(empresa=empresa) if empresa else Empreendimento.objects.none()
     if q:
         qs = qs.filter(nome__icontains=q)
-    return render(request, 'empreendimentos/empreendimento_lista_pdf.html', {'empreendimentos': qs, 'q': q})
+    return render_to_pdf('empreendimentos/empreendimento_lista_pdf.html', {'empreendimentos': qs, 'q': q}, filename='empreendimentos.pdf')
 
 
 @login_required
@@ -277,14 +371,78 @@ def empreendimento_pdf(request, pk):
 
     totais_gerais = _totais(Unidade.objects.filter(bloco__empreendimento=obj))
 
-    return render(request, 'empreendimentos/empreendimento_pdf.html', {
+    return render_to_pdf('empreendimentos/empreendimento_pdf.html', {
         'empreendimento': obj,
         'blocos_dados': blocos_dados,
         'totais_gerais': totais_gerais,
-    })
+    }, filename=f'empreendimento-{obj.nome}.pdf')
 
 
 # ─── Bloco ─────────────────────────────────────────────────────────────────────
+
+@login_required
+def empreendimento_vinculos_pdf(request, pk):
+    empreendimento = get_object_or_404(Empreendimento.all_objects, pk=pk)
+
+    unidades_qs = (
+        Unidade.objects
+        .select_related('status', 'tipo', 'unidade_principal')
+        .prefetch_related(
+            Prefetch('complementares', queryset=Unidade.objects.select_related('status', 'tipo').order_by('ordem', 'numero')),
+            'designacoes',
+        )
+        .order_by('ordem', 'numero')
+    )
+
+    blocos = empreendimento.blocos.prefetch_related(
+        Prefetch('unidades', queryset=unidades_qs)
+    ).all()
+
+    blocos_dados = []
+    for bloco in blocos:
+        unidades = list(bloco.unidades.all())
+        principais = [u for u in unidades if u.unidade_principal_id is None]
+        blocos_dados.append({'bloco': bloco, 'principais': principais})
+
+    return render_to_pdf('empreendimentos/empreendimento_vinculos_pdf.html', {
+        'empreendimento': empreendimento,
+        'blocos_dados': blocos_dados,
+    }, filename=f'vinculos-{empreendimento.nome}.pdf')
+
+
+@login_required
+def bloco_pdf(request, pk, bloco_pk):
+    from django.db.models import Sum
+    empreendimento = get_object_or_404(Empreendimento.all_objects, pk=pk)
+    bloco = get_object_or_404(Bloco.all_objects, pk=bloco_pk, empreendimento=empreendimento)
+    unidades = bloco.unidades.select_related('status', 'tipo').order_by('ordem', 'numero')
+
+    totais = unidades.aggregate(
+        ap=Sum('area_privativa'),
+        apa=Sum('area_privativa_acessoria'),
+        ac=Sum('area_comum'),
+        fi=Sum('fracao_ideal'),
+        vgv=Sum('valor_tabela'),
+    )
+    ap  = totais['ap']  or 0
+    apa = totais['apa'] or 0
+    ac  = totais['ac']  or 0
+    ctx_totais = {
+        'area_privativa':           ap,
+        'area_privativa_acessoria': apa,
+        'area_comum':               ac,
+        'area_real_total':          ap + apa + ac,
+        'fracao_ideal':             totais['fi']  or 0,
+        'vgv':                      totais['vgv'] or 0,
+    }
+
+    return render_to_pdf('empreendimentos/bloco_pdf.html', {
+        'empreendimento': empreendimento,
+        'bloco': bloco,
+        'unidades': unidades,
+        'totais': ctx_totais,
+    }, filename=f'{bloco.nome}.pdf')
+
 
 class BlocoDetailView(LoginRequiredMixin, DetailView):
     model = Bloco
@@ -527,7 +685,7 @@ def unidade_pdf(request, pk, bloco_pk, unidade_pk):
         Unidade.all_objects.select_related('bloco__empreendimento', 'status', 'tipo'),
         pk=unidade_pk, bloco_id=bloco_pk,
     )
-    return render(request, 'empreendimentos/unidade_pdf.html', {'unidade': unidade})
+    return render_to_pdf('empreendimentos/unidade_pdf.html', {'unidade': unidade}, filename=f'unidade-{unidade.numero}.pdf')
 
 
 # ─── Vínculos e Designações ────────────────────────────────────────────────────
