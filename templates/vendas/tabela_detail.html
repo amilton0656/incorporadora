@@ -29,37 +29,48 @@
         <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">Inativa</span>
       {% endif %}
     </div>
-    <p class="text-gray-400 text-sm">{{ empreendimento.nome }}
-      {% if tabela.vigencia_inicio or tabela.vigencia_fim %}
-      &mdash;
-      {% if tabela.vigencia_inicio %}{{ tabela.vigencia_inicio|date:'d/m/Y' }}{% endif %}
-      {% if tabela.vigencia_inicio and tabela.vigencia_fim %} a {% endif %}
-      {% if tabela.vigencia_fim %}{{ tabela.vigencia_fim|date:'d/m/Y' }}{% endif %}
-      {% endif %}
-    </p>
+    <p class="text-gray-400 text-sm">{{ empreendimento.nome }}{% if tabela.vigencia_inicio or tabela.vigencia_fim %} &mdash; {% if tabela.vigencia_inicio %}{{ tabela.vigencia_inicio|date:'d/m/Y' }}{% endif %}{% if tabela.vigencia_inicio and tabela.vigencia_fim %} a {% endif %}{% if tabela.vigencia_fim %}{{ tabela.vigencia_fim|date:'d/m/Y' }}{% endif %}{% endif %}</p>
   </div>
   <div class="flex flex-wrap gap-2">
     {% if not tabela.deletado %}
     <a href="{% url 'vendas:tabela_update' empreendimento.pk tabela.pk %}"
        class="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-gray-700">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-      </svg>
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
       Editar
     </a>
     <a href="{% url 'vendas:tabela_delete' empreendimento.pk tabela.pk %}"
        class="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg transition">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-      </svg>
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
       Excluir
     </a>
     {% endif %}
+    {% if not tabela.deletado %}
+    <a href="{% url 'vendas:tabela_importar_csv' empreendimento.pk tabela.pk %}"
+       class="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-gray-700">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+      Importar CSV
+    </a>
+    <form method="post" action="{% url 'vendas:tabela_recalcular' empreendimento.pk tabela.pk %}" class="inline">
+      {% csrf_token %}
+      <button type="submit"
+              class="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-gray-700">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        Recalcular
+      </button>
+    </form>
+    <form method="post" action="{% url 'vendas:tabela_limpar_complementares' empreendimento.pk tabela.pk %}" class="inline"
+          onsubmit="return confirm('Remover todas as unidades complementares (garagens/HBs) desta tabela?')">
+      {% csrf_token %}
+      <button type="submit"
+              class="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 border border-amber-200 text-amber-700 hover:bg-amber-50 rounded-lg transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Remover indevidas
+      </button>
+    </form>
+    {% endif %}
     <a href="{% url 'vendas:tabela_pdf' empreendimento.pk tabela.pk %}"
        class="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 bg-brand hover:bg-brand-dark text-white rounded-lg transition">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-      </svg>
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
       Exportar PDF
     </a>
   </div>
@@ -69,9 +80,13 @@
 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
   <div class="bg-white border border-gray-200 rounded-xl px-4 py-3">
     <p class="text-xs text-gray-400 mb-1">Unidades</p>
-    <p class="text-sm font-semibold text-gray-800">{{ itens|length }}</p>
+    <p class="text-sm font-semibold text-gray-800">{{ itens_data|length }}</p>
   </div>
-  <div class="bg-brand/5 border border-brand/20 rounded-xl px-4 py-3 col-span-1 sm:col-span-3">
+  <div class="bg-white border border-gray-200 rounded-xl px-4 py-3">
+    <p class="text-xs text-gray-400 mb-1">Séries</p>
+    <p class="text-sm font-semibold text-gray-800">{{ series|length }}</p>
+  </div>
+  <div class="bg-brand/5 border border-brand/20 rounded-xl px-4 py-3 col-span-2">
     <p class="text-xs text-gray-400 mb-1">VGV da tabela</p>
     <p class="text-base font-bold text-brand">{{ total_geral|brl_moeda }}</p>
   </div>
@@ -81,68 +96,109 @@
 <div class="bg-white border border-gray-200 rounded-xl px-5 py-4 mb-6 text-sm text-gray-600">{{ tabela.observacoes }}</div>
 {% endif %}
 
+<!-- Séries configuradas -->
+<div class="bg-white border border-gray-200 rounded-xl p-5 mb-6">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">Séries (colunas)</h2>
+    {% if tipos_disponiveis and not tabela.deletado %}
+    <a href="{% url 'vendas:serie_create' empreendimento.pk tabela.pk %}"
+       class="inline-flex items-center gap-1 text-xs font-medium text-brand hover:underline">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+      Adicionar série
+    </a>
+    {% endif %}
+  </div>
+
+  {% if series %}
+  {% comment %}Aviso se percentuais não somam 100{% endcomment %}
+  {% with soma=0 %}
+  {% for s in series %}{% with soma=soma|add:s.percentual %}{% endwith %}{% endfor %}
+  {% endwith %}
+
+  <div class="flex flex-wrap gap-3 mb-3">
+    {% for serie in series %}
+    <div class="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+      <div>
+        <p class="text-xs font-semibold text-gray-800">{{ serie.get_tipo_display }} <span class="text-brand font-bold">{{ serie.percentual }}%</span></p>
+        <p class="text-xs text-gray-400">{{ serie.quantidade }}×{% if serie.periodicidade %} &bull; {{ serie.get_periodicidade_display }}{% endif %}{% if serie.data_primeiro_vencimento %} &bull; 1º {{ serie.data_primeiro_vencimento|date:'d/m/Y' }}{% endif %}</p>
+      </div>
+      {% if not tabela.deletado %}
+      <div class="flex gap-1 ml-2">
+        <a href="{% url 'vendas:serie_update' empreendimento.pk tabela.pk serie.pk %}"
+           class="text-gray-300 hover:text-brand transition" title="Editar">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+        </a>
+        <form method="post" action="{% url 'vendas:serie_delete' empreendimento.pk tabela.pk serie.pk %}"
+              onsubmit="return confirm('Remover série {{ serie.get_tipo_display }}? Os valores serão perdidos.')">
+          {% csrf_token %}
+          <button type="submit" class="text-gray-300 hover:text-red-500 transition" title="Remover">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </form>
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="text-sm text-gray-400">
+    Nenhuma série configurada.
+    {% if not tabela.deletado %}
+    <a href="{% url 'vendas:serie_create' empreendimento.pk tabela.pk %}" class="text-brand hover:underline">Adicionar a primeira série</a> para definir as colunas da tabela.
+    {% endif %}
+  </p>
+  {% endif %}
+</div>
+
 <!-- Tabela de itens -->
-{% if itens %}
+{% if itens_data and series %}
 <div id="tabela-scroll" class="w-full bg-white border border-gray-200 rounded-xl overflow-x-auto cursor-grab active:cursor-grabbing select-none">
   <table class="w-full text-xs whitespace-nowrap">
     <thead class="bg-gray-50 border-b border-gray-200">
       <tr>
-        <th class="text-left px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide sticky left-0 bg-gray-50 z-10">Unidade</th>
+        <th class="text-left px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Unidade</th>
         <th class="text-left px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Tipologia</th>
         <th class="text-right px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Área Priv.</th>
         <th class="text-right px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Área Total</th>
-        <th class="text-left px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Garagens</th>
+        <th class="text-left px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Gar.</th>
         <th class="text-left px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">HB</th>
-        <th class="text-right px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Ato</th>
-        <th class="text-right px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Parcelas</th>
-        <th class="text-right px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Reforços</th>
-        <th class="text-right px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Chaves</th>
-        <th class="text-right px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Financiamento</th>
+        {% for serie in series %}
+        <th class="text-right px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">
+          {{ serie.get_tipo_display }}<br>
+          <span class="text-gray-400 normal-case font-normal">({{ serie.quantidade }}×)</span>
+        </th>
+        {% endfor %}
         <th class="text-right px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Total</th>
         <th class="text-center px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide">Situação</th>
         <th class="px-4 py-3"></th>
       </tr>
     </thead>
     <tbody class="divide-y divide-gray-100">
-      {% for item in itens %}
-      {% with u=item.unidade %}
+      {% for row in itens_data %}
+      {% with u=row.item.unidade %}
       <tr class="hover:bg-gray-50 transition">
-        <td class="px-4 py-3 font-semibold text-gray-800 sticky left-0 bg-white group-hover:bg-gray-50">{{ u.numero }}</td>
+        <td class="px-4 py-3 font-semibold text-gray-800">{{ u.numero }}</td>
         <td class="px-4 py-3 text-gray-600">{{ u.tipologia|default:'—' }}</td>
         <td class="px-4 py-3 text-right text-gray-700">{{ u.area_privativa|brl_area:2 }}</td>
         <td class="px-4 py-3 text-right text-gray-700">{{ u.area_total|brl_area:2 }}</td>
-        <td class="px-4 py-3 text-gray-600">
-          {% for d in u.designacoes.all %}{% if d.tipo == 'garagem_carro' or d.tipo == 'garagem_moto' %}{{ d.nome }}{% if not forloop.last %}, {% endif %}{% endif %}{% endfor %}
-          {% for c in u.complementares.all %}{% if c.tipo and 'aragem' in c.tipo.nome %}{{ c.numero }}{% endif %}{% endfor %}
+        <td class="px-4 py-3 text-gray-600 text-xs">
+          {% if u.gars_tab_vendas %}{{ u.gars_tab_vendas }}{% else %}{% for d in u.designacoes.all %}{% if d.tipo == 'garagem_carro' or d.tipo == 'garagem_moto' %}{{ d.nome }} {% endif %}{% endfor %}{% for c in u.complementares.all %}{% if 'aragem' in c.tipo.nome %}{{ c.numero }} {% endif %}{% endfor %}{% endif %}
         </td>
-        <td class="px-4 py-3 text-gray-600">
-          {% for d in u.designacoes.all %}{% if d.tipo == 'hobby_box' %}{{ d.nome }}{% if not forloop.last %}, {% endif %}{% endif %}{% endfor %}
+        <td class="px-4 py-3 text-gray-600 text-xs">
+          {% if u.hb_tab_vendas %}{{ u.hb_tab_vendas }}{% else %}{% for d in u.designacoes.all %}{% if d.tipo == 'hobby_box' %}{{ d.nome }} {% endif %}{% endfor %}{% for c in u.complementares.all %}{% if 'obby' in c.tipo.nome %}{{ c.numero }} {% endif %}{% endfor %}{% endif %}
         </td>
+        {% for valor in row.valores %}
         <td class="px-4 py-3 text-right text-gray-700">
-          {% if item.ato_qtd %}{{ item.ato_qtd }}×{{ item.ato_valor|brl_moeda }}{% else %}—{% endif %}
+          {% if valor %}{{ valor.valor|brl_moeda }}{% else %}<span class="text-gray-300">—</span>{% endif %}
         </td>
-        <td class="px-4 py-3 text-right text-gray-700">
-          {% if item.parcelas_mensais_qtd %}{{ item.parcelas_mensais_qtd }}×{{ item.parcelas_mensais_valor|brl_moeda }}{% else %}—{% endif %}
-        </td>
-        <td class="px-4 py-3 text-right text-gray-700">
-          {% if item.reforcos_qtd %}{{ item.reforcos_qtd }}×{{ item.reforcos_valor|brl_moeda }}{% else %}—{% endif %}
-        </td>
-        <td class="px-4 py-3 text-right text-gray-700">
-          {% if item.chaves_valor %}{{ item.chaves_valor|brl_moeda }}{% else %}—{% endif %}
-        </td>
-        <td class="px-4 py-3 text-right text-gray-700">
-          {% if item.financiamento_valor %}{{ item.financiamento_valor|brl_moeda }}{% else %}—{% endif %}
-        </td>
-        <td class="px-4 py-3 text-right font-bold text-brand">{{ item.valor_total|brl_moeda }}</td>
+        {% endfor %}
+        <td class="px-4 py-3 text-right font-bold text-brand">{{ row.total|brl_moeda }}</td>
         <td class="px-4 py-3 text-center">
-          {% if u.status %}
-          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">{{ u.status }}</span>
-          {% else %}—{% endif %}
+          {% if u.status %}<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">{{ u.status }}</span>{% else %}—{% endif %}
         </td>
         <td class="px-4 py-3 text-right">
           {% if not tabela.deletado %}
-          <a href="{% url 'vendas:tabela_item_update' empreendimento.pk tabela.pk item.pk %}"
-             class="text-brand hover:underline font-medium">Editar</a>
+          <a href="{% url 'vendas:tabela_item_update' empreendimento.pk tabela.pk row.item.pk %}" class="text-brand hover:underline font-medium">Editar</a>
           {% endif %}
         </td>
       </tr>
@@ -151,13 +207,28 @@
     </tbody>
     <tfoot class="border-t-2 border-brand/20 bg-brand/5">
       <tr>
-        <td colspan="11" class="px-4 py-3 text-xs font-semibold text-brand text-right">Total Geral</td>
+        <td class="px-4 py-3 text-xs font-semibold text-brand">Total</td>
+        <td class="px-4 py-3"></td>
+        <td class="px-4 py-3 text-right text-xs font-semibold text-brand">{{ total_area_priv|brl_area:2 }}</td>
+        <td class="px-4 py-3 text-right text-xs font-semibold text-brand">{{ total_area_tot|brl_area:2 }}</td>
+        <td class="px-4 py-3"></td>
+        <td class="px-4 py-3"></td>
+        {% for t in totais_series %}
+        <td class="px-4 py-3 text-right text-xs font-semibold text-brand">{{ t|brl_moeda }}</td>
+        {% endfor %}
         <td class="px-4 py-3 text-right font-bold text-brand">{{ total_geral|brl_moeda }}</td>
-        <td colspan="2"></td>
+        <td class="px-4 py-3"></td>
+        <td class="px-4 py-3"></td>
       </tr>
     </tfoot>
   </table>
 </div>
+
+{% elif itens_data and not series %}
+<div class="bg-amber-50 border border-amber-200 rounded-xl px-6 py-6 text-sm text-amber-700">
+  A tabela tem {{ itens_data|length }} unidade(s) mas nenhuma série configurada. <a href="{% url 'vendas:serie_create' empreendimento.pk tabela.pk %}" class="font-semibold underline">Adicione as séries</a> para definir as colunas e preencher os valores.
+</div>
+
 {% else %}
 <div class="bg-white border border-gray-200 rounded-xl px-6 py-10 text-center text-gray-400 text-sm">
   Nenhuma unidade nesta tabela.

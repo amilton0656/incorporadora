@@ -64,9 +64,10 @@ class Empresa(SoftDeleteModel):
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
 
-    history = HistoricalRecords()
+    history = HistoricalRecords(table_name='inc_historical_empresa')
 
     class Meta:
+        db_table = 'inc_empresa'
         verbose_name = 'Empresa'
         verbose_name_plural = 'Empresas'
         ordering = ['nome']
@@ -86,6 +87,7 @@ class UserProfile(models.Model):
     cargo = models.CharField('Cargo', max_length=100, blank=True)
 
     class Meta:
+        db_table = 'inc_userprofile'
         verbose_name = 'Perfil de usuário'
         verbose_name_plural = 'Perfis de usuário'
 

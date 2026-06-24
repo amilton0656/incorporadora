@@ -158,6 +158,53 @@
       </div>
     </div>
 
+    <!-- Espelho de Unidades -->
+    <div class="bg-white border border-gray-200 rounded-xl p-6 mb-4">
+      <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-1">Espelho de Unidades</h2>
+      <p class="text-xs text-gray-400 mb-4">Define o posicionamento desta unidade no espelho visual do empreendimento.</p>
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.linha.id_for_label }}">
+            Linha <span class="text-gray-400 font-normal text-xs">(ex: T, SS, 1, 2)</span>
+          </label>
+          {{ form.linha }}
+          {% if form.linha.errors %}<p class="text-red-500 text-xs mt-1">{{ form.linha.errors.0 }}</p>{% endif %}
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.descricao_linha.id_for_label }}">
+            Descrição da linha <span class="text-gray-400 font-normal text-xs">(ex: Térreo)</span>
+          </label>
+          {{ form.descricao_linha }}
+          {% if form.descricao_linha.errors %}<p class="text-red-500 text-xs mt-1">{{ form.descricao_linha.errors.0 }}</p>{% endif %}
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.coluna.id_for_label }}">
+            Coluna <span class="text-gray-400 font-normal text-xs">(número)</span>
+          </label>
+          {{ form.coluna }}
+          {% if form.coluna.errors %}<p class="text-red-500 text-xs mt-1">{{ form.coluna.errors.0 }}</p>{% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabela de Vendas -->
+    <div class="bg-white border border-gray-200 rounded-xl p-6 mb-4">
+      <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-1">Tabela de Vendas</h2>
+      <p class="text-xs text-gray-400 mb-4">Se preenchidos, substituem as informações de vínculos nas colunas Gar. e HB da tabela de vendas.</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.gars_tab_vendas.id_for_label }}">Garagens (tabela de vendas)</label>
+          {{ form.gars_tab_vendas }}
+          {% if form.gars_tab_vendas.errors %}<p class="text-red-500 text-xs mt-1">{{ form.gars_tab_vendas.errors.0 }}</p>{% endif %}
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.hb_tab_vendas.id_for_label }}">Hobby Box (tabela de vendas)</label>
+          {{ form.hb_tab_vendas }}
+          {% if form.hb_tab_vendas.errors %}<p class="text-red-500 text-xs mt-1">{{ form.hb_tab_vendas.errors.0 }}</p>{% endif %}
+        </div>
+      </div>
+    </div>
+
     <div class="flex flex-col sm:flex-row items-center gap-3">
       <button type="submit" class="w-full sm:w-auto bg-brand hover:bg-brand-dark text-white font-semibold px-6 py-2.5 rounded-lg transition text-sm">
         {% if object %}Salvar alterações{% else %}Criar unidade{% endif %}

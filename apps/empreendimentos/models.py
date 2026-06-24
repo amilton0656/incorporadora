@@ -7,11 +7,14 @@ from apps.core.models import Empresa, SoftDeleteModel
 class StatusUnidade(SoftDeleteModel):
     empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name='status_unidade', verbose_name='Empresa')
     nome = models.CharField('Nome', max_length=50)
+    cor  = models.CharField('Cor', max_length=7, default='#9ca3af',
+                            help_text='Cor hexadecimal, ex: #22c55e')
     criado_em = models.DateTimeField(auto_now_add=True)
 
-    history = HistoricalRecords()
+    history = HistoricalRecords(table_name='inc_historical_status_unidade')
 
     class Meta:
+        db_table = 'inc_status_unidade'
         verbose_name = 'Status de unidade'
         verbose_name_plural = 'Status de unidades'
         ordering = ['nome']
@@ -34,9 +37,10 @@ class TipoUnidade(SoftDeleteModel):
     categoria = models.CharField('Categoria', max_length=12, choices=CATEGORIA_CHOICES, default=PRINCIPAL)
     criado_em = models.DateTimeField(auto_now_add=True)
 
-    history = HistoricalRecords()
+    history = HistoricalRecords(table_name='inc_historical_tipo_unidade')
 
     class Meta:
+        db_table = 'inc_tipo_unidade'
         verbose_name = 'Tipo de unidade'
         verbose_name_plural = 'Tipos de unidade'
         ordering = ['categoria', 'nome']
@@ -65,9 +69,10 @@ class Empreendimento(SoftDeleteModel):
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
 
-    history = HistoricalRecords()
+    history = HistoricalRecords(table_name='inc_historical_empreendimento')
 
     class Meta:
+        db_table = 'inc_empreendimento'
         verbose_name = 'Empreendimento'
         verbose_name_plural = 'Empreendimentos'
         ordering = ['nome']
@@ -95,9 +100,10 @@ class Bloco(SoftDeleteModel):
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
 
-    history = HistoricalRecords()
+    history = HistoricalRecords(table_name='inc_historical_bloco')
 
     class Meta:
+        db_table = 'inc_bloco'
         verbose_name = 'Bloco'
         verbose_name_plural = 'Blocos'
         ordering = ['ordem', 'nome']
@@ -143,6 +149,12 @@ class Unidade(SoftDeleteModel):
     )
     tipologia = models.CharField('Tipologia', max_length=20, blank=True)
     localizacao = models.CharField('Localização', max_length=30, blank=True)
+    linha           = models.CharField('Linha (espelho)', max_length=10, blank=True,
+                                       help_text='Ex: T, SS, 1, 2, 3 — define a linha no espelho')
+    descricao_linha = models.CharField('Descrição da linha', max_length=50, blank=True,
+                                       help_text='Ex: Térreo, 1º Andar, Subsolo')
+    coluna          = models.PositiveSmallIntegerField('Coluna (espelho)', null=True, blank=True,
+                                                       help_text='Número da coluna no espelho')
     area_privativa = models.DecimalField('Área privativa (m²)', max_digits=10, decimal_places=4, null=True, blank=True)
     area_privativa_acessoria = models.DecimalField('Área privativa acessória (m²)', max_digits=10, decimal_places=4, null=True, blank=True)
     area_comum = models.DecimalField('Área comum (m²)', max_digits=10, decimal_places=4, null=True, blank=True)
@@ -151,12 +163,15 @@ class Unidade(SoftDeleteModel):
     descricao_1 = models.CharField('Descrição 1', max_length=70, blank=True)
     descricao_2 = models.CharField('Descrição 2', max_length=70, blank=True)
     descricao_3 = models.CharField('Descrição 3', max_length=70, blank=True)
+    gars_tab_vendas = models.CharField('Garagens (tabela de vendas)', max_length=100, blank=True)
+    hb_tab_vendas   = models.CharField('Hobby Box (tabela de vendas)', max_length=100, blank=True)
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
 
-    history = HistoricalRecords()
+    history = HistoricalRecords(table_name='inc_historical_unidade')
 
     class Meta:
+        db_table = 'inc_unidade'
         verbose_name = 'Unidade'
         verbose_name_plural = 'Unidades'
         ordering = ['ordem', 'numero']
@@ -194,9 +209,10 @@ class DesignacaoUnidade(models.Model):
     tipo = models.CharField('Tipo', max_length=15, choices=TIPO_CHOICES)
     nome = models.CharField('Nome', max_length=20)
 
-    history = HistoricalRecords()
+    history = HistoricalRecords(table_name='inc_historical_designacao_unidade')
 
     class Meta:
+        db_table = 'inc_designacao_unidade'
         verbose_name = 'Designação'
         verbose_name_plural = 'Designações'
         ordering = ['tipo', 'nome']
@@ -204,3 +220,25 @@ class DesignacaoUnidade(models.Model):
 
     def __str__(self):
         return f'{self.get_tipo_display()} — {self.nome}'
+
+
+class SituacaoFixada(models.Model):
+    """Situação fixada para uma unidade — sobrescreve o status após qualquer importação."""
+    unidade = models.OneToOneField(
+        Unidade, on_delete=models.CASCADE,
+        related_name='situacao_fixada', verbose_name='Unidade',
+    )
+    status = models.ForeignKey(
+        StatusUnidade, on_delete=models.PROTECT,
+        related_name='+', verbose_name='Status fixado',
+    )
+    observacao = models.CharField('Observação', max_length=200, blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'inc_situacao_fixada'
+        verbose_name = 'Situação Fixada'
+        verbose_name_plural = 'Situações Fixadas'
+
+    def __str__(self):
+        return f'{self.unidade.numero} → {self.status.nome}'

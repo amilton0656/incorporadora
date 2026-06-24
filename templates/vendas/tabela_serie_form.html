@@ -1,0 +1,95 @@
+{% extends 'base_intranet.html' %}
+{% block title %}{% if editando %}Editar série{% else %}Nova série{% endif %} — {{ tabela.nome }}{% endblock %}
+
+{% block breadcrumb %}
+<nav class="text-sm text-gray-400 mb-6">
+  <a href="{% url 'intranet:welcome' %}" class="hover:text-brand transition">Início</a>
+  <span class="mx-2">/</span>
+  <a href="{% url 'empreendimentos:empreendimento_detail' empreendimento.pk %}" class="hover:text-brand transition">{{ empreendimento.nome }}</a>
+  <span class="mx-2">/</span>
+  <a href="{% url 'vendas:tabela_list' empreendimento.pk %}" class="hover:text-brand transition">Tabelas</a>
+  <span class="mx-2">/</span>
+  <a href="{% url 'vendas:tabela_detail' empreendimento.pk tabela.pk %}" class="hover:text-brand transition">{{ tabela.nome }}</a>
+  <span class="mx-2">/</span>
+  <span class="text-gray-700 font-medium">{% if editando %}Editar série{% else %}Nova série{% endif %}</span>
+</nav>
+{% endblock %}
+
+{% block inner_content %}
+<div class="max-w-lg">
+  <h1 class="text-xl font-semibold text-gray-800 mb-1">{% if editando %}Editar série — {{ serie.get_tipo_display }}{% else %}Nova série{% endif %}</h1>
+  <p class="text-sm text-gray-400 mb-6">{{ tabela.nome }} &mdash; {{ empreendimento.nome }}</p>
+
+  <form method="post">
+    {% csrf_token %}
+    <div class="bg-white border border-gray-200 rounded-xl p-6 mb-6 space-y-4">
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+        {{ form.tipo }}
+        {% if form.tipo.errors %}<p class="text-xs text-red-500 mt-1">{{ form.tipo.errors.0 }}</p>{% endif %}
+        {% if editando %}<p class="text-xs text-gray-400 mt-1">O tipo não pode ser alterado após a criação.</p>{% endif %}
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Percentual do valor total (%)</label>
+        {{ form.percentual }}
+        {% if form.percentual.errors %}<p class="text-xs text-red-500 mt-1">{{ form.percentual.errors.0 }}</p>{% endif %}
+        <p class="text-xs text-gray-400 mt-1">Fatia do valor total da unidade destinada a esta série. A soma de todas as séries deve ser 100%.</p>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Quantidade de parcelas</label>
+        {{ form.quantidade }}
+        {% if form.quantidade.errors %}<p class="text-xs text-red-500 mt-1">{{ form.quantidade.errors.0 }}</p>{% endif %}
+      </div>
+
+      <div id="campo-periodicidade">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Periodicidade</label>
+        {{ form.periodicidade }}
+        {% if form.periodicidade.errors %}<p class="text-xs text-red-500 mt-1">{{ form.periodicidade.errors.0 }}</p>{% endif %}
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Data do 1º vencimento</label>
+        {{ form.data_primeiro_vencimento }}
+        {% if form.data_primeiro_vencimento.errors %}<p class="text-xs text-red-500 mt-1">{{ form.data_primeiro_vencimento.errors.0 }}</p>{% endif %}
+      </div>
+
+    </div>
+
+    <div class="flex items-center gap-3">
+      <button type="submit" class="px-6 py-2.5 bg-brand hover:bg-brand-dark text-white rounded-lg text-sm font-semibold transition">
+        {% if editando %}Salvar{% else %}Adicionar série{% endif %}
+      </button>
+      <a href="{% url 'vendas:tabela_detail' empreendimento.pk tabela.pk %}"
+         class="px-6 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition">
+        Cancelar
+      </a>
+    </div>
+  </form>
+</div>
+
+<script>
+(function () {
+  var qtd = document.getElementById('id_quantidade');
+  var campo = document.getElementById('campo-periodicidade');
+  var select = document.getElementById('id_periodicidade');
+
+  function toggle() {
+    var val = parseInt(qtd.value, 10);
+    if (val === 1) {
+      campo.style.display = 'none';
+      if (select) select.value = '';
+    } else {
+      campo.style.display = '';
+    }
+  }
+
+  if (qtd) {
+    qtd.addEventListener('input', toggle);
+    toggle();
+  }
+})();
+</script>
+{% endblock %}

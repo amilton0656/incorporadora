@@ -68,6 +68,7 @@
       <a href="{% url 'vendas:tabela_detail' empreendimento.pk tabela.pk %}" class="text-xs font-medium text-brand hover:underline">Ver tabela</a>
       {% if not tabela.deletado %}
       <a href="{% url 'vendas:tabela_update' empreendimento.pk tabela.pk %}" class="text-xs text-gray-400 hover:text-brand">Editar</a>
+      <a href="{% url 'vendas:tabela_importar_csv' empreendimento.pk tabela.pk %}" class="text-xs text-gray-400 hover:text-brand">Importar CSV</a>
       <a href="{% url 'vendas:tabela_pdf' empreendimento.pk tabela.pk %}" class="text-xs text-gray-400 hover:text-brand">PDF</a>
       <a href="{% url 'vendas:tabela_delete' empreendimento.pk tabela.pk %}" class="text-xs text-red-400 hover:text-red-600 ml-auto">Excluir</a>
       {% endif %}

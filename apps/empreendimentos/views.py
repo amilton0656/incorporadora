@@ -51,6 +51,7 @@ _COLUNAS_UNIDADES = {
     'area_comum', 'fracao_ideal', 'valor_tabela', 'status',
     'descricao1', 'descricao2', 'descricao3',
 }
+_COLUNAS_UNIDADES_OPCIONAIS = {'linha', 'descricao_linha', 'coluna', 'gars_tab_vendas', 'hb_tab_vendas'}
 
 _COLUNAS_VINCULOS = {'tipo', 'principal', 'complementar'}
 
@@ -549,6 +550,8 @@ _UNIDADE_FIELDS = [
     'area_privativa', 'area_privativa_acessoria', 'area_comum',
     'fracao_ideal', 'valor_tabela',
     'descricao_1', 'descricao_2', 'descricao_3',
+    'gars_tab_vendas', 'hb_tab_vendas',
+    'linha', 'descricao_linha', 'coluna',
 ]
 
 
@@ -772,9 +775,11 @@ def _parse_decimal(val):
 _MODELO_UNIDADES = [
     ['Empreendimento', 'Bloco', 'numero', 'ordem', 'adicionais', 'tipo', 'tipologia',
      'localizacao', 'area_privativa', 'area_privativa_acessoria', 'area_comum',
-     'fracao_ideal', 'valor_tabela', 'status', 'descricao1', 'descricao2', 'descricao3'],
+     'fracao_ideal', 'valor_tabela', 'status', 'descricao1', 'descricao2', 'descricao3',
+     'linha', 'descricao_linha', 'coluna', 'gars_tab_vendas', 'hb_tab_vendas'],
     ['Residencial Alpha', 'Torre A', '101', '1', '', 'Apartamento', '2 quartos',
-     'Frente', '65,00', '', '10,00', '0,00123456', '350000,00', 'Disponível', '', '', ''],
+     'Frente', '65,00', '', '10,00', '0,00123456', '350000,00', 'Disponível', '', '', '',
+     '1', '1º Andar', '1', '', ''],
 ]
 
 _MODELO_VINCULOS = [
@@ -842,6 +847,8 @@ def importar_unidades(request, pk):
         if faltando:
             messages.error(request, f'CSV de unidades: coluna(s) ausente(s): {", ".join(faltando)}')
             return redirect('empreendimentos:importar_unidades', pk=pk)
+        # Colunas opcionais presentes no CSV
+        cols_opcionais = set(reader.fieldnames or []) & _COLUNAS_UNIDADES_OPCIONAIS
 
         if modo == 'apagar_tudo':
             for bloco in empreendimento.blocos.all():
@@ -886,6 +893,18 @@ def importar_unidades(request, pk):
                     'descricao_2':             row['descricao2'].strip(),
                     'descricao_3':             row['descricao3'].strip(),
                 }
+                # Campos opcionais: só inclui se a coluna estiver no CSV
+                if 'linha' in cols_opcionais:
+                    dados['linha'] = row.get('linha', '').strip()
+                if 'descricao_linha' in cols_opcionais:
+                    dados['descricao_linha'] = row.get('descricao_linha', '').strip()
+                if 'coluna' in cols_opcionais:
+                    val = row.get('coluna', '').strip()
+                    dados['coluna'] = int(val) if val.isdigit() else None
+                if 'gars_tab_vendas' in cols_opcionais:
+                    dados['gars_tab_vendas'] = row.get('gars_tab_vendas', '').strip()
+                if 'hb_tab_vendas' in cols_opcionais:
+                    dados['hb_tab_vendas'] = row.get('hb_tab_vendas', '').strip()
                 numero = row['numero'].strip()
 
                 if modo == 'apagar_tudo':
@@ -997,7 +1016,7 @@ class StatusUnidadeListView(LoginRequiredMixin, EmpresaQuerysetMixin, ListView):
 class StatusUnidadeCreateView(LoginRequiredMixin, CreateView):
     model = StatusUnidade
     template_name = 'empreendimentos/config_form.html'
-    fields = ['nome']
+    fields = ['nome', 'cor']
     success_url = reverse_lazy('empreendimentos:status_unidade_list')
 
     def get_form(self, form_class=None):
@@ -1018,7 +1037,7 @@ class StatusUnidadeCreateView(LoginRequiredMixin, CreateView):
 class StatusUnidadeUpdateView(LoginRequiredMixin, UpdateView):
     model = StatusUnidade
     template_name = 'empreendimentos/config_form.html'
-    fields = ['nome']
+    fields = ['nome', 'cor']
     success_url = reverse_lazy('empreendimentos:status_unidade_list')
 
     def get_form(self, form_class=None):

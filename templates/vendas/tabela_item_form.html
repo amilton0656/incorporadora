@@ -1,6 +1,6 @@
 {% extends 'base_intranet.html' %}
 {% load formatters %}
-{% block title %}Editar item — {{ object.unidade.numero }}{% endblock %}
+{% block title %}Editar valores — {{ item.unidade.numero }}{% endblock %}
 
 {% block breadcrumb %}
 <nav class="text-sm text-gray-400 mb-6">
@@ -12,105 +12,62 @@
   <span class="mx-2">/</span>
   <a href="{% url 'vendas:tabela_detail' empreendimento.pk tabela.pk %}" class="hover:text-brand transition">{{ tabela.nome }}</a>
   <span class="mx-2">/</span>
-  <span class="text-gray-700 font-medium">{{ object.unidade.numero }}</span>
+  <span class="text-gray-700 font-medium">{{ item.unidade.numero }}</span>
 </nav>
 {% endblock %}
 
 {% block inner_content %}
 <div class="max-w-xl">
-  <h1 class="text-xl font-semibold text-gray-800 mb-1">Editar valores — Unidade {{ object.unidade.numero }}</h1>
+  <h1 class="text-xl font-semibold text-gray-800 mb-1">Unidade {{ item.unidade.numero }}</h1>
   <p class="text-sm text-gray-400 mb-6">{{ tabela.nome }} &mdash; {{ empreendimento.nome }}</p>
 
   <!-- Resumo da unidade -->
   <div class="bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 mb-6 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-    <div><span class="text-gray-400 block">Tipologia</span><span class="font-medium text-gray-700">{{ object.unidade.tipologia|default:'—' }}</span></div>
-    <div><span class="text-gray-400 block">Área Priv.</span><span class="font-medium text-gray-700">{{ object.unidade.area_privativa|brl_area:2 }} m²</span></div>
-    <div><span class="text-gray-400 block">Área Total</span><span class="font-medium text-gray-700">{{ object.unidade.area_total|brl_area:2 }} m²</span></div>
-    <div><span class="text-gray-400 block">Situação</span><span class="font-medium text-gray-700">{{ object.unidade.status|default:'—' }}</span></div>
+    <div><span class="text-gray-400 block">Tipologia</span><span class="font-medium text-gray-700">{{ item.unidade.tipologia|default:'—' }}</span></div>
+    <div><span class="text-gray-400 block">Área Priv.</span><span class="font-medium text-gray-700">{{ item.unidade.area_privativa|brl_area:2 }} m²</span></div>
+    <div><span class="text-gray-400 block">Área Total</span><span class="font-medium text-gray-700">{{ item.unidade.area_total|brl_area:2 }} m²</span></div>
+    <div><span class="text-gray-400 block">Situação</span><span class="font-medium text-gray-700">{{ item.unidade.status|default:'—' }}</span></div>
   </div>
 
+  {% if series_valores %}
   <form method="post">
     {% csrf_token %}
 
-    <div class="bg-white border border-gray-200 rounded-xl p-6 mb-4 space-y-5">
-
-      <!-- Ato -->
-      <div>
-        <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Ato</h3>
-        <div class="grid grid-cols-2 gap-3">
+    <div class="bg-white border border-gray-200 rounded-xl p-6 mb-6 space-y-5">
+      {% for serie, valor in series_valores %}
+      <div class="{% if not forloop.first %}border-t border-gray-100 pt-5{% endif %}">
+        <div class="flex items-center justify-between mb-3">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Qtd. parcelas</label>
-            {{ form.ato_qtd }}
+            <h3 class="text-sm font-semibold text-gray-800">{{ serie.get_tipo_display }}</h3>
+            <p class="text-xs text-gray-400">{{ serie.quantidade }}×{% if serie.periodicidade %} &bull; {{ serie.get_periodicidade_display }}{% endif %}{% if serie.data_primeiro_vencimento %} &bull; 1º venc. {{ serie.data_primeiro_vencimento|date:'d/m/Y' }}{% endif %}</p>
           </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Valor por parcela</label>
-            <input type="text" name="ato_valor" value="{{ form.ato_valor.value|brl_moeda }}"
-                   data-mask="currency" class="{{ form.ato_valor.field.widget.attrs.class }}">
+          {% if valor and valor.pk %}
+          <div class="text-right">
+            <p class="text-xs text-gray-400">Subtotal</p>
+            <p class="text-sm font-bold text-brand" id="subtotal_{{ serie.pk }}">{{ valor.valor_total|brl_moeda }}</p>
+          </div>
+          {% endif %}
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="flex-1">
+            <label class="block text-xs text-gray-500 mb-1">Valor por parcela</label>
+            <input type="text"
+                   name="valor_{{ serie.pk }}"
+                   id="valor_{{ serie.pk }}"
+                   value="{% if valor and valor.valor %}{{ valor.valor|brl_moeda }}{% endif %}"
+                   data-mask="currency"
+                   data-qtd="{{ serie.quantidade }}"
+                   data-subtotal="subtotal_{{ serie.pk }}"
+                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition">
           </div>
         </div>
       </div>
-
-      <div class="border-t border-gray-100"></div>
-
-      <!-- Parcelas mensais -->
-      <div>
-        <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Parcelas Mensais</h3>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Qtd. parcelas</label>
-            {{ form.parcelas_mensais_qtd }}
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Valor por parcela</label>
-            <input type="text" name="parcelas_mensais_valor" value="{{ form.parcelas_mensais_valor.value|brl_moeda }}"
-                   data-mask="currency" class="{{ form.parcelas_mensais_valor.field.widget.attrs.class }}">
-          </div>
-        </div>
-      </div>
-
-      <div class="border-t border-gray-100"></div>
-
-      <!-- Reforços -->
-      <div>
-        <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Reforços</h3>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Qtd. reforços</label>
-            {{ form.reforcos_qtd }}
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Valor por reforço</label>
-            <input type="text" name="reforcos_valor" value="{{ form.reforcos_valor.value|brl_moeda }}"
-                   data-mask="currency" class="{{ form.reforcos_valor.field.widget.attrs.class }}">
-          </div>
-        </div>
-      </div>
-
-      <div class="border-t border-gray-100"></div>
-
-      <!-- Chaves e Financiamento -->
-      <div>
-        <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Parcelas Únicas</h3>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Chaves</label>
-            <input type="text" name="chaves_valor" value="{{ form.chaves_valor.value|brl_moeda }}"
-                   data-mask="currency" class="{{ form.chaves_valor.field.widget.attrs.class }}">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Financiamento</label>
-            <input type="text" name="financiamento_valor" value="{{ form.financiamento_valor.value|brl_moeda }}"
-                   data-mask="currency" class="{{ form.financiamento_valor.field.widget.attrs.class }}">
-          </div>
-        </div>
-      </div>
-
+      {% endfor %}
     </div>
 
     <div class="flex items-center gap-3">
-      <button type="submit"
-              class="px-6 py-2.5 bg-brand hover:bg-brand-dark text-white rounded-lg text-sm font-semibold transition">
-        Salvar
+      <button type="submit" class="px-6 py-2.5 bg-brand hover:bg-brand-dark text-white rounded-lg text-sm font-semibold transition">
+        Salvar valores
       </button>
       <a href="{% url 'vendas:tabela_detail' empreendimento.pk tabela.pk %}"
          class="px-6 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition">
@@ -118,6 +75,12 @@
       </a>
     </div>
   </form>
+  {% else %}
+  <div class="bg-amber-50 border border-amber-200 rounded-xl px-6 py-6 text-sm text-amber-700">
+    Nenhuma série configurada nesta tabela.
+    <a href="{% url 'vendas:serie_create' empreendimento.pk tabela.pk %}" class="font-semibold underline">Configure as séries</a> primeiro.
+  </div>
+  {% endif %}
 </div>
 
 {% load static %}

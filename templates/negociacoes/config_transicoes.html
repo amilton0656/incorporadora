@@ -1,0 +1,48 @@
+{% extends 'base_intranet.html' %}
+{% block title %}Transições — {{ etapa.nome }}{% endblock %}
+
+{% block breadcrumb %}
+<nav class="text-sm text-gray-400 mb-6">
+  <a href="{% url 'intranet:welcome' %}" class="hover:text-brand transition">Início</a>
+  <span class="mx-2">/</span>
+  <a href="{% url 'negociacoes:etapa_list' %}" class="hover:text-brand transition">Workflow</a>
+  <span class="mx-2">/</span>
+  <span class="text-gray-700 font-medium">Transições de "{{ etapa.nome }}"</span>
+</nav>
+{% endblock %}
+
+{% block inner_content %}
+<div class="max-w-xl">
+  <div class="flex items-center gap-3 mb-6">
+    <h1 class="text-xl font-semibold text-gray-800">Transições de</h1>
+    <span class="px-3 py-1 rounded-lg text-white text-sm font-semibold" style="background-color: {{ etapa.cor }}">{{ etapa.nome }}</span>
+  </div>
+  <p class="text-sm text-gray-500 mb-6">Marque para quais etapas uma negociação em <strong>{{ etapa.nome }}</strong> pode avançar ou voltar.</p>
+
+  <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+    {% for dest in todas %}
+    <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 last:border-0">
+      <div class="flex items-center gap-3">
+        <span class="w-3 h-3 rounded-full" style="background-color: {{ dest.cor }}"></span>
+        <span class="text-sm font-medium text-gray-800">{{ dest.nome }}</span>
+      </div>
+      <form method="post" action="{% url 'negociacoes:transicao_toggle' etapa.pk dest.pk %}">
+        {% csrf_token %}
+        <button type="submit"
+                class="relative inline-flex h-6 w-11 items-center rounded-full transition
+                       {% if dest.pk in ativas %}bg-brand{% else %}bg-gray-200{% endif %}">
+          <span class="inline-block h-4 w-4 transform rounded-full bg-white transition
+                       {% if dest.pk in ativas %}translate-x-6{% else %}translate-x-1{% endif %}"></span>
+        </button>
+      </form>
+    </div>
+    {% empty %}
+    <div class="px-5 py-8 text-center text-gray-400 text-sm">Nenhuma outra etapa cadastrada.</div>
+    {% endfor %}
+  </div>
+
+  <div class="mt-4">
+    <a href="{% url 'negociacoes:etapa_list' %}" class="text-sm text-brand hover:underline">← Voltar ao workflow</a>
+  </div>
+</div>
+{% endblock %}

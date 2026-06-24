@@ -18,15 +18,70 @@ class TabelaVendas(SoftDeleteModel):
     observacoes = models.TextField('Observações', blank=True)
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
-    history = HistoricalRecords()
+    history = HistoricalRecords(table_name='inc_historical_tabela_vendas')
 
     class Meta:
+        db_table = 'inc_tabela_vendas'
         ordering = ['-criado_em']
         verbose_name = 'Tabela de Vendas'
         verbose_name_plural = 'Tabelas de Vendas'
 
     def __str__(self):
         return f'{self.nome} — {self.empreendimento.nome}'
+
+
+class TabelaSerie(models.Model):
+    ATO = 'ato'
+    PARCELAS_MENSAIS = 'parcelas_mensais'
+    REFORCOS = 'reforcos'
+    CHAVES = 'chaves'
+    FINANCIAMENTO = 'financiamento'
+
+    TIPO_CHOICES = [
+        (ATO, 'Ato'),
+        (PARCELAS_MENSAIS, 'Parcelas Mensais'),
+        (REFORCOS, 'Reforços'),
+        (CHAVES, 'Chaves'),
+        (FINANCIAMENTO, 'Financiamento'),
+    ]
+    TIPO_ORDEM = {ATO: 0, PARCELAS_MENSAIS: 1, REFORCOS: 2, CHAVES: 3, FINANCIAMENTO: 4}
+
+    PERIODICIDADE_CHOICES = [
+        ('mensal', 'Mensal'),
+        ('bimestral', 'Bimestral'),
+        ('trimestral', 'Trimestral'),
+        ('quadrimestral', 'Quadrimestral'),
+        ('semestral', 'Semestral'),
+        ('anual', 'Anual'),
+    ]
+
+    tabela = models.ForeignKey(TabelaVendas, on_delete=models.CASCADE, related_name='series')
+    tipo = models.CharField('Tipo', max_length=20, choices=TIPO_CHOICES)
+    percentual = models.DecimalField('Percentual (%)', max_digits=5, decimal_places=2, default=Decimal('0'))
+    quantidade = models.PositiveIntegerField('Qtd. parcelas', default=1)
+    data_primeiro_vencimento = models.DateField('Data 1º vencimento', null=True, blank=True)
+    periodicidade = models.CharField('Periodicidade', max_length=15, choices=PERIODICIDADE_CHOICES, blank=True, default='')
+
+    class Meta:
+        db_table = 'inc_tabela_serie'
+        unique_together = ('tabela', 'tipo')
+        ordering = ['tipo']
+        verbose_name = 'Série'
+        verbose_name_plural = 'Séries'
+
+    def __str__(self):
+        return f'{self.get_tipo_display()} ({self.quantidade}×)'
+
+    @property
+    def label(self):
+        return f'{self.get_tipo_display()} ({self.quantidade}×)'
+
+    def calcular_valor_parcela(self, valor_total):
+        """Retorna o valor por parcela com base no valor total da unidade."""
+        if not self.quantidade:
+            return Decimal('0')
+        valor_serie = (valor_total or Decimal('0')) * (self.percentual or Decimal('0')) / Decimal('100')
+        return (valor_serie / self.quantidade).quantize(Decimal('0.01'))
 
 
 class TabelaVendasItem(models.Model):
@@ -37,19 +92,8 @@ class TabelaVendasItem(models.Model):
         Unidade, on_delete=models.PROTECT, related_name='tabela_itens'
     )
 
-    ato_qtd = models.PositiveIntegerField('Qtd. ato', default=1)
-    ato_valor = models.DecimalField('Valor ato', max_digits=14, decimal_places=2, default=Decimal('0'))
-
-    parcelas_mensais_qtd = models.PositiveIntegerField('Qtd. parcelas mensais', default=0)
-    parcelas_mensais_valor = models.DecimalField('Valor parcela mensal', max_digits=14, decimal_places=2, default=Decimal('0'))
-
-    reforcos_qtd = models.PositiveIntegerField('Qtd. reforços', default=0)
-    reforcos_valor = models.DecimalField('Valor reforço', max_digits=14, decimal_places=2, default=Decimal('0'))
-
-    chaves_valor = models.DecimalField('Chaves', max_digits=14, decimal_places=2, default=Decimal('0'))
-    financiamento_valor = models.DecimalField('Financiamento', max_digits=14, decimal_places=2, default=Decimal('0'))
-
     class Meta:
+        db_table = 'inc_tabela_vendas_item'
         ordering = ['unidade__bloco__ordem', 'unidade__ordem', 'unidade__numero']
         unique_together = ('tabela', 'unidade')
         verbose_name = 'Item da Tabela'
@@ -59,23 +103,27 @@ class TabelaVendasItem(models.Model):
         return f'{self.tabela.nome} — {self.unidade.numero}'
 
     @property
-    def ato_total(self):
-        return (self.ato_qtd or 0) * (self.ato_valor or Decimal('0'))
+    def valor_total(self):
+        return sum(
+            (v.valor_total for v in self.valores.select_related('serie').all()),
+            Decimal('0'),
+        )
 
-    @property
-    def parcelas_mensais_total(self):
-        return (self.parcelas_mensais_qtd or 0) * (self.parcelas_mensais_valor or Decimal('0'))
 
-    @property
-    def reforcos_total(self):
-        return (self.reforcos_qtd or 0) * (self.reforcos_valor or Decimal('0'))
+class TabelaVendasItemValor(models.Model):
+    item = models.ForeignKey(TabelaVendasItem, on_delete=models.CASCADE, related_name='valores')
+    serie = models.ForeignKey(TabelaSerie, on_delete=models.CASCADE, related_name='valores')
+    valor = models.DecimalField('Valor por parcela', max_digits=14, decimal_places=2, default=Decimal('0'))
+
+    class Meta:
+        db_table = 'inc_tabela_vendas_item_valor'
+        unique_together = ('item', 'serie')
+        verbose_name = 'Valor do Item'
+        verbose_name_plural = 'Valores dos Itens'
+
+    def __str__(self):
+        return f'{self.item.unidade.numero} / {self.serie.get_tipo_display()}'
 
     @property
     def valor_total(self):
-        return (
-            self.ato_total +
-            self.parcelas_mensais_total +
-            self.reforcos_total +
-            (self.chaves_valor or Decimal('0')) +
-            (self.financiamento_valor or Decimal('0'))
-        )
+        return (self.serie.quantidade or 0) * (self.valor or Decimal('0'))

@@ -25,6 +25,10 @@
              class="px-3 py-1.5 rounded text-blue-200 hover:text-white hover:bg-brand-light transition">
             Pessoas
           </a>
+          <a href="{% url 'negociacoes:kanban' %}"
+             class="px-3 py-1.5 rounded text-blue-200 hover:text-white hover:bg-brand-light transition">
+            Negociações
+          </a>
           <!-- Dropdown Configurações -->
           <div class="relative group">
             <button class="flex items-center gap-1 px-3 py-1.5 rounded text-blue-200 hover:text-white hover:bg-brand-light transition">
@@ -47,6 +51,11 @@
               <a href="{% url 'pessoas:tipo_papel_list' %}"
                  class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition">
                 Tipos de papel
+              </a>
+              <div class="border-t border-gray-100 my-1"></div>
+              <a href="{% url 'negociacoes:etapa_list' %}"
+                 class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition">
+                Workflow de negociações
               </a>
             </div>
           </div>
