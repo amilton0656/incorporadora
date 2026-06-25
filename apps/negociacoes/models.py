@@ -72,6 +72,11 @@ class Negociacao(SoftDeleteModel):
     numero              = models.PositiveIntegerField('Número', unique=True, editable=False)
     empresa             = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name='negociacoes')
     empreendimento      = models.ForeignKey(Empreendimento, on_delete=models.PROTECT, related_name='negociacoes')
+    tabela              = models.ForeignKey(
+                            'vendas.TabelaVendas', on_delete=models.SET_NULL,
+                            null=True, blank=True, related_name='negociacoes',
+                            verbose_name='Tabela de vendas',
+                          )
     etapa               = models.ForeignKey(EtapaWorkflow, on_delete=models.PROTECT, related_name='negociacoes')
     status              = models.CharField('Status', max_length=10, choices=STATUS_CHOICES, default=STATUS_ATIVA)
     data_abertura       = models.DateField('Data da proposta', default=_date_hoje)

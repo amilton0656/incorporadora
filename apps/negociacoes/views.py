@@ -90,13 +90,30 @@ def _gerar_resumo(neg, series):
     TIPO_LABEL = dict(TabelaSerie.TIPO_CHOICES)
     TIPO_ORDEM = ['ato', 'parcelas_mensais', 'reforcos', 'chaves', 'financiamento', 'dacao', 'outro']
 
-    # Totais da tabela de referência — soma de todos os tabela_item das unidades
+    # Totais da tabela: mesma lógica do card "Valores da Tabela de Vendas"
     from .models import NegociacaoUnidade
+    from apps.vendas.models import TabelaVendasItem as TVI_R, TabelaSerie as TS_R
     tabela_por_tipo = {}
-    for nu in NegociacaoUnidade.objects.filter(negociacao=neg, tabela_item__isnull=False).select_related('tabela_item'):
-        for v in nu.tabela_item.valores.select_related('serie').all():
-            tipo = v.serie.tipo
-            tabela_por_tipo[tipo] = tabela_por_tipo.get(tipo, Decimal('0')) + v.valor_total
+
+    if neg.tabela_id:
+        unidade_ids_r = list(NegociacaoUnidade.objects.filter(negociacao=neg).values_list('unidade_id', flat=True))
+        encontrados_r = set()
+        for item in TVI_R.objects.filter(
+            tabela_id=neg.tabela_id, unidade_id__in=unidade_ids_r
+        ).prefetch_related('valores__serie'):
+            encontrados_r.add(item.unidade_id)
+            for v in item.valores.all():
+                tipo = v.serie.tipo
+                tabela_por_tipo[tipo] = tabela_por_tipo.get(tipo, Decimal('0')) + v.valor_total
+
+        # Fallback: calcula via valor_tabela × percentual para unidades não nos itens
+        for serie in TS_R.objects.filter(tabela_id=neg.tabela_id):
+            for nu in NegociacaoUnidade.objects.filter(negociacao=neg).select_related('unidade'):
+                if nu.unidade_id in encontrados_r:
+                    continue
+                tipo = serie.tipo
+                val = serie.calcular_valor_parcela(nu.unidade.valor_tabela or Decimal('0'))
+                tabela_por_tipo[tipo] = tabela_por_tipo.get(tipo, Decimal('0')) + val
 
     # Totais da proposta agrupados por tipo
     proposta_por_tipo = {}
@@ -461,10 +478,15 @@ class NegociacaoCreateView(LoginRequiredMixin, View):
         except ValueError:
             data = datetime.date.today()
 
+        from apps.vendas.models import TabelaVendas as TV
+        tabela_id = request.POST.get('tabela_id') or None
+        tabela_obj = TV.objects.filter(pk=tabela_id).first() if tabela_id else None
+
         neg = Negociacao(
             empresa=empresa,
             empreendimento=empreendimento,
             etapa=etapa,
+            tabela=tabela_obj,
             data_abertura=data,
             desconto_percentual=_parse_decimal(request.POST.get('desconto_percentual', '0')),
             observacoes=request.POST.get('observacoes', '').strip(),
@@ -528,6 +550,39 @@ class NegociacaoCreateView(LoginRequiredMixin, View):
                     periodicidade=period or '',
                 )
 
+        # Copia séries da tabela como séries propostas iniciais
+        if neg.tabela_id:
+            from apps.vendas.models import TabelaSerie, TabelaVendasItem as TVI2
+            unidade_ids = list(NegociacaoUnidade.objects.filter(negociacao=neg).values_list('unidade_id', flat=True))
+            series_tabela = TabelaSerie.objects.filter(tabela_id=neg.tabela_id).order_by('tipo')
+
+            for serie in series_tabela:
+                valor_parcela = Decimal('0')
+                encontrou_item = False
+
+                # Via TabelaVendasItemValor (valor exato na tabela)
+                for item in TVI2.objects.filter(
+                    tabela_id=neg.tabela_id, unidade_id__in=unidade_ids
+                ).prefetch_related('valores__serie'):
+                    for v in item.valores.filter(serie=serie):
+                        valor_parcela += v.valor
+                        encontrou_item = True
+
+                # Fallback: calcula via valor_tabela × percentual
+                if not encontrou_item:
+                    for nu in NegociacaoUnidade.objects.filter(negociacao=neg).select_related('unidade'):
+                        valor_parcela += serie.calcular_valor_parcela(nu.unidade.valor_tabela or Decimal('0'))
+
+                SerieNegociacao.objects.create(
+                    negociacao=neg,
+                    tipo=serie.tipo,
+                    quantidade=serie.quantidade,
+                    valor_por_parcela=valor_parcela,
+                    data_primeiro_vencimento=serie.data_primeiro_vencimento,
+                    periodicidade=serie.periodicidade,
+                    serie_ref=serie,
+                )
+
         messages.success(request, f'Proposta #{neg.numero} criada com sucesso.')
         return redirect('negociacoes:negociacao_detail', pk=neg.pk)
 
@@ -565,19 +620,58 @@ class NegociacaoDetailView(LoginRequiredMixin, DetailView):
         # Resumo Tabela × Proposto × Diferença
         ctx['resumo'] = _gerar_resumo(neg, series)
 
-        # Séries da tabela para comparação inline — usa o tabela_item da primeira unidade
+        # Séries da tabela: usa neg.tabela (global) e soma por unidade
         from .models import NegociacaoUnidade
-        first_nu = NegociacaoUnidade.objects.filter(
-            negociacao=neg, tabela_item__isnull=False
-        ).select_related('tabela_item__tabela').first()
-        if first_nu:
-            ctx['series_tabela'] = first_nu.tabela_item.tabela.series.all()
-            ctx['valores_tabela'] = {
-                v.serie_id: v for v in first_nu.tabela_item.valores.select_related('serie').all()
-            }
-        else:
-            ctx['series_tabela'] = []
-            ctx['valores_tabela'] = {}
+        from apps.vendas.models import TabelaVendasItem as TVI
+        tabela_por_tipo = {}
+        tabela_label    = {}
+        tabela_serie_info = {}
+
+        if neg.tabela_id:
+            from apps.vendas.models import TabelaSerie
+            unidade_ids = list(neg.unidades.values_list('unidade_id', flat=True))
+
+            # Tenta via TabelaVendasItem (unidade está na tabela)
+            itens_encontrados = set()
+            for item in TVI.objects.filter(
+                tabela_id=neg.tabela_id, unidade_id__in=unidade_ids
+            ).prefetch_related('valores__serie'):
+                itens_encontrados.add(item.unidade_id)
+                for v in item.valores.all():
+                    tipo = v.serie.tipo
+                    tabela_por_tipo[tipo] = tabela_por_tipo.get(tipo, Decimal('0')) + v.valor_total
+                    if tipo not in tabela_label:
+                        tabela_label[tipo] = v.serie.get_tipo_display()
+                        tabela_serie_info[tipo] = {
+                            'quantidade': v.serie.quantidade,
+                            'periodicidade': v.serie.get_periodicidade_display() if v.serie.periodicidade else '',
+                        }
+
+            # Fallback: calcula via valor_tabela × percentual para unidades não encontradas
+            series = list(TabelaSerie.objects.filter(tabela_id=neg.tabela_id))
+            if series:
+                for nu in neg.unidades.select_related('unidade').all():
+                    if nu.unidade_id in itens_encontrados:
+                        continue  # já calculado via item
+                    valor_base = nu.unidade.valor_tabela or Decimal('0')
+                    for serie in series:
+                        tipo = serie.tipo
+                        valor_serie = (valor_base * (serie.percentual or Decimal('0')) / Decimal('100'))
+                        tabela_por_tipo[tipo] = tabela_por_tipo.get(tipo, Decimal('0')) + valor_serie
+                        if tipo not in tabela_label:
+                            tabela_label[tipo] = serie.get_tipo_display()
+                            tabela_serie_info[tipo] = {
+                                'quantidade': serie.quantidade,
+                                'periodicidade': serie.get_periodicidade_display() if serie.periodicidade else '',
+                            }
+
+        TIPO_ORDEM = ['ato', 'parcelas_mensais', 'reforcos', 'chaves', 'financiamento', 'dacao', 'outro']
+        ctx['tabela_series_resumo'] = [
+            {'tipo': tipo, 'label': tabela_label[tipo],
+             'total': tabela_por_tipo[tipo], 'info': tabela_serie_info[tipo]}
+            for tipo in TIPO_ORDEM if tipo in tabela_por_tipo
+        ]
+        ctx['tabela_total'] = sum(tabela_por_tipo.values(), Decimal('0'))
 
         # Pessoas disponíveis para adicionar como parte
         empresa = _get_empresa(self.request)
@@ -678,6 +772,57 @@ def api_conjuge_sugerido(request, pessoa_pk):
 
 
 @login_required
+def negociacao_reset_series(request, pk):
+    """Limpa as séries propostas e copia os valores da tabela de vendas vinculada."""
+    if request.method != 'POST':
+        return redirect('negociacoes:negociacao_detail', pk=pk)
+
+    neg = get_object_or_404(Negociacao.objects, pk=pk)
+
+    if not neg.tabela_id:
+        messages.error(request, 'Nenhuma tabela de vendas vinculada a esta proposta.')
+        return redirect('negociacoes:negociacao_detail', pk=pk)
+
+    from apps.vendas.models import TabelaSerie, TabelaVendasItem as TVI3
+
+    # Apaga as séries propostas existentes
+    neg.series.all().delete()
+
+    unidade_ids = list(neg.unidades.values_list('unidade_id', flat=True))
+    series_tabela = TabelaSerie.objects.filter(tabela_id=neg.tabela_id).order_by('tipo')
+    criadas = 0
+
+    for serie in series_tabela:
+        valor_parcela = Decimal('0')
+        encontrou = False
+
+        for item in TVI3.objects.filter(
+            tabela_id=neg.tabela_id, unidade_id__in=unidade_ids
+        ).prefetch_related('valores__serie'):
+            for v in item.valores.filter(serie=serie):
+                valor_parcela += v.valor
+                encontrou = True
+
+        if not encontrou:
+            for nu in neg.unidades.select_related('unidade').all():
+                valor_parcela += serie.calcular_valor_parcela(nu.unidade.valor_tabela or Decimal('0'))
+
+        SerieNegociacao.objects.create(
+            negociacao=neg,
+            tipo=serie.tipo,
+            quantidade=serie.quantidade,
+            valor_por_parcela=valor_parcela,
+            data_primeiro_vencimento=serie.data_primeiro_vencimento,
+            periodicidade=serie.periodicidade,
+            serie_ref=serie,
+        )
+        criadas += 1
+
+    messages.success(request, f'{criadas} série(s) copiada(s) da tabela de vendas.')
+    return redirect('negociacoes:negociacao_detail', pk=pk)
+
+
+@login_required
 def negociacao_unidade_add(request, pk):
     from .models import NegociacaoUnidade
     neg = get_object_or_404(Negociacao.objects, pk=pk)
@@ -755,6 +900,35 @@ def serie_add(request, pk):
         )
         messages.success(request, 'Série adicionada.')
     return redirect('negociacoes:negociacao_detail', pk=pk)
+
+
+@login_required
+def serie_update(request, pk, serie_pk):
+    neg   = get_object_or_404(Negociacao.objects, pk=pk)
+    serie = get_object_or_404(SerieNegociacao, pk=serie_pk, negociacao=neg)
+
+    if request.method == 'POST':
+        serie.descricao           = request.POST.get('descricao', '').strip()
+        serie.quantidade          = int(request.POST.get('quantidade') or 1)
+        raw_valor = request.POST.get('valor_por_parcela', '0').strip()
+        # Aceita formato decimal puro (1234.56) ou BRL (1.234,56)
+        if ',' in raw_valor:
+            raw_valor = raw_valor.replace('.', '').replace(',', '.')
+        try:
+            serie.valor_por_parcela = Decimal(raw_valor or '0')
+        except Exception:
+            serie.valor_por_parcela = Decimal('0')
+        serie.data_primeiro_vencimento = request.POST.get('data_primeiro_vencimento') or None
+        serie.periodicidade       = request.POST.get('periodicidade', '') if serie.quantidade > 1 else ''
+        serie.save()
+        messages.success(request, f'Série "{serie.get_tipo_display()}" atualizada.')
+        return redirect('negociacoes:negociacao_detail', pk=pk)
+
+    return render(request, 'negociacoes/serie_form.html', {
+        'neg': neg,
+        'serie': serie,
+        'periodicidades': SerieNegociacao.PERIODICIDADE_CHOICES,
+    })
 
 
 @login_required

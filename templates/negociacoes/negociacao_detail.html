@@ -69,6 +69,36 @@
 </div>
 {% endif %}
 
+<!-- Identificação da proposta -->
+<div class="bg-white border border-gray-200 rounded-xl px-5 py-4 mb-6 flex flex-wrap items-center gap-x-8 gap-y-2">
+  <div>
+    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">Empreendimento</p>
+    <p class="text-sm font-semibold text-gray-800">{{ neg.empreendimento.nome }}</p>
+  </div>
+  {% if neg.tabela %}
+  <div>
+    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">Tabela de vendas</p>
+    <p class="text-sm font-semibold text-gray-800">{{ neg.tabela.nome }}</p>
+  </div>
+  {% endif %}
+  <div>
+    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">Data</p>
+    <p class="text-sm font-semibold text-gray-800">{{ neg.data_abertura|date:'d/m/Y' }}</p>
+  </div>
+  {% if neg.desconto_percentual %}
+  <div>
+    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">Desconto</p>
+    <p class="text-sm font-semibold text-gray-800">{{ neg.desconto_percentual }}%</p>
+  </div>
+  {% endif %}
+  {% if neg.observacoes %}
+  <div class="w-full border-t border-gray-100 pt-3 mt-1">
+    <p class="text-xs text-gray-500 font-medium mb-1">Observações</p>
+    <p class="text-sm text-gray-600">{{ neg.observacoes }}</p>
+  </div>
+  {% endif %}
+</div>
+
 <!-- Unidades da negociação -->
 <div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
   <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">Unidades</h2>
@@ -213,30 +243,67 @@
     {% endif %}
   </div>
 
-  <!-- Empreendimento + Observações -->
-  <div class="bg-white border border-gray-200 rounded-xl p-6">
-    <dl class="space-y-3">
-      {% include 'core/_detail_row.html' with label='Empreendimento' value=neg.empreendimento.nome %}
-      {% include 'core/_detail_row.html' with label='Data' value=neg.data_abertura|date:'d/m/Y' %}
-      {% if neg.desconto_percentual %}
-      {% include 'core/_detail_row.html' with label='Desconto' value=neg.desconto_percentual %}
-      {% endif %}
-    </dl>
-    {% if neg.observacoes %}
-    <div class="mt-4 border-t border-gray-100 pt-4">
-      <p class="text-xs text-gray-500 font-medium mb-1">Observações</p>
-      <p class="text-sm text-gray-600 whitespace-pre-line">{{ neg.observacoes }}</p>
-    </div>
-    {% endif %}
-  </div>
 
 </div>
 
+<!-- Valores da Tabela de Vendas -->
+{% if tabela_series_resumo %}
+<div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
+  <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">
+    Valores da Tabela de Vendas
+    {% if neg_unidades|length > 1 %}
+    <span class="ml-2 text-xs font-normal text-gray-400">(soma de {{ neg_unidades|length }} unidades)</span>
+    {% endif %}
+  </h2>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 border-b border-gray-200">
+        <tr>
+          <th class="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Tipo</th>
+          <th class="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Total</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for s in tabela_series_resumo %}
+        <tr class="hover:bg-gray-50">
+          <td class="px-4 py-2.5 font-medium text-gray-700">
+            {{ s.label }}
+            <span class="text-xs text-gray-400 ml-1">({{ s.info.quantidade }}×{% if s.info.periodicidade %} {{ s.info.periodicidade }}{% endif %})</span>
+          </td>
+          <td class="px-4 py-2.5 text-right font-semibold text-gray-800">{{ s.total|brl_moeda }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot class="border-t-2 border-gray-200 bg-gray-50">
+        <tr>
+          <td class="px-4 py-2.5 font-bold text-gray-800">Total</td>
+          <td class="px-4 py-2.5 text-right font-bold text-brand">{{ tabela_total|brl_moeda }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+{% endif %}
+
 <!-- Séries da proposta -->
 <div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
-  <div class="flex items-center justify-between mb-4">
-    <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">Séries da Proposta</h2>
-    <div class="text-sm font-bold text-brand">Total: {{ neg.valor_negociado|brl_moeda }}</div>
+  <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+    <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">Valores Propostos</h2>
+    <div class="flex items-center gap-3">
+      {% if neg.tabela_id and neg.status == 'ativa' %}
+      <form method="post" action="{% url 'negociacoes:negociacao_reset_series' neg.pk %}"
+            onsubmit="return confirm('Substituir as séries propostas pelos valores da tabela de vendas?')">
+        {% csrf_token %}
+        <button type="submit"
+                class="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-gray-600">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+          Trazer valores da tabela
+        </button>
+      </form>
+      {% endif %}
+    </div>
   </div>
 
   {% if series_tabela %}
@@ -303,17 +370,39 @@
           <td class="px-3 py-2 text-gray-500">{{ s.data_primeiro_vencimento|date:'d/m/Y'|default:'—' }}</td>
           <td class="px-3 py-2 text-right">
             {% if neg.status == 'ativa' %}
+            <div class="flex items-center justify-end gap-2">
+              <a href="{% url 'negociacoes:serie_update' neg.pk s.pk %}"
+                 class="text-gray-400 hover:text-brand transition" title="Editar">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+              </a>
             <form method="post" action="{% url 'negociacoes:serie_remove' neg.pk s.pk %}">
               {% csrf_token %}
               <button type="submit" class="text-gray-300 hover:text-red-500 transition">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
               </button>
             </form>
+            </div>
             {% endif %}
           </td>
         </tr>
         {% endfor %}
       </tbody>
+      <tfoot class="border-t-2 border-gray-200">
+        <tr class="bg-gray-50">
+          <td colspan="4" class="px-3 py-2.5 font-bold text-gray-800">Total proposto</td>
+          <td class="px-3 py-2.5 text-right font-bold text-brand">{{ neg.valor_negociado|brl_moeda }}</td>
+          <td colspan="3"></td>
+        </tr>
+        {% if resumo.diferenca_total %}
+        <tr class="bg-gray-50 border-t border-gray-100">
+          <td colspan="4" class="px-3 py-2 text-xs text-gray-500">Diferença para tabela de vendas</td>
+          <td class="px-3 py-2 text-right text-xs font-semibold {% if resumo.diferenca_total < 0 %}text-red-600{% elif resumo.diferenca_total > 0 %}text-green-600{% else %}text-gray-400{% endif %}">
+            {{ resumo.diferenca_total|brl_moeda }}
+          </td>
+          <td colspan="3"></td>
+        </tr>
+        {% endif %}
+      </tfoot>
     </table>
   </div>
   {% else %}
@@ -373,60 +462,6 @@
   {% endif %}
 </div>
 
-<!-- Resumo Tabela × Proposto × Diferença -->
-{% if resumo.linhas or resumo.total_proposto %}
-<div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
-  <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">Resumo financeiro</h2>
-  <div class="overflow-x-auto">
-    <table class="w-full text-sm">
-      <thead class="bg-gray-50 border-b border-gray-200">
-        <tr>
-          <th class="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Série</th>
-          <th class="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Tabela</th>
-          <th class="text-right px-4 py-2 text-xs font-semibold text-brand uppercase tracking-wide">Proposto</th>
-          <th class="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Diferença</th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-gray-100">
-        {% for linha in resumo.linhas %}
-        <tr class="hover:bg-gray-50">
-          <td class="px-4 py-2.5 font-medium text-gray-700">{{ linha.label }}</td>
-          <td class="px-4 py-2.5 text-right text-gray-600">{% if linha.tabela %}{{ linha.tabela|brl_moeda }}{% else %}<span class="text-gray-300">—</span>{% endif %}</td>
-          <td class="px-4 py-2.5 text-right font-semibold text-brand">{{ linha.proposto|brl_moeda }}</td>
-          <td class="px-4 py-2.5 text-right {% if linha.diferenca < 0 %}text-red-600{% elif linha.diferenca > 0 %}text-green-600{% else %}text-gray-400{% endif %}">
-            {% if linha.diferenca %}{{ linha.diferenca|brl_moeda }}{% else %}—{% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-      <tfoot class="border-t-2 border-gray-200">
-        <tr class="bg-gray-50">
-          <td class="px-4 py-2.5 font-bold text-gray-800">Total</td>
-          <td class="px-4 py-2.5 text-right font-bold text-gray-700">{{ resumo.total_tabela|brl_moeda }}</td>
-          <td class="px-4 py-2.5 text-right font-bold text-brand">{{ resumo.total_proposto|brl_moeda }}</td>
-          <td class="px-4 py-2.5 text-right font-bold {% if resumo.diferenca_total < 0 %}text-red-600{% elif resumo.diferenca_total > 0 %}text-green-600{% else %}text-gray-400{% endif %}">
-            {{ resumo.diferenca_total|brl_moeda }}
-          </td>
-        </tr>
-        {% if resumo.desconto_pct %}
-        <tr class="bg-amber-50">
-          <td class="px-4 py-2 text-sm text-amber-700">Desconto ({{ resumo.desconto_pct }}%)</td>
-          <td class="px-4 py-2"></td>
-          <td class="px-4 py-2 text-right text-sm text-amber-700">- {{ resumo.valor_desconto|brl_moeda }}</td>
-          <td class="px-4 py-2"></td>
-        </tr>
-        <tr class="bg-amber-50 border-t border-amber-200">
-          <td class="px-4 py-2.5 font-bold text-amber-800">Total c/ desconto</td>
-          <td class="px-4 py-2.5"></td>
-          <td class="px-4 py-2.5 text-right font-bold text-amber-800">{{ resumo.total_com_desconto|brl_moeda }}</td>
-          <td class="px-4 py-2.5"></td>
-        </tr>
-        {% endif %}
-      </tfoot>
-    </table>
-  </div>
-</div>
-{% endif %}
 
 <!-- Calendário de parcelas -->
 {% if calendario %}
@@ -457,6 +492,12 @@
         </tr>
         {% endfor %}
       </tbody>
+      <tfoot class="border-t-2 border-gray-200 bg-gray-50">
+        <tr>
+          <td colspan="3" class="px-3 py-2.5 font-bold text-gray-800">Total</td>
+          <td class="px-3 py-2.5 text-right font-bold text-brand">{{ neg.valor_negociado|brl_moeda }}</td>
+        </tr>
+      </tfoot>
     </table>
   </div>
 </div>
