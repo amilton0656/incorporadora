@@ -28,11 +28,16 @@
     <p class="text-gray-400 text-sm">{{ neg.unidade }} — {{ neg.empreendimento.nome }}</p>
   </div>
   <div class="flex flex-wrap gap-2">
-    {% if neg.status == 'ativa' and not neg.deletado %}
+    {% if not neg.deletado %}
     <a href="{% url 'negociacoes:negociacao_update' neg.pk %}"
        class="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-gray-700">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
       Editar
+    </a>
+    <a href="{% url 'negociacoes:negociacao_delete' neg.pk %}"
+       class="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+      Excluir
     </a>
     {% endif %}
   </div>
@@ -64,6 +69,86 @@
 </div>
 {% endif %}
 
+<!-- Unidades da negociação -->
+<div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
+  <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">Unidades</h2>
+
+  {% if neg_unidades %}
+  <div class="overflow-x-auto mb-4">
+    <table class="w-full text-xs">
+      <thead class="bg-gray-50 border-b border-gray-200">
+        <tr>
+          <th class="text-left px-3 py-2 font-semibold text-gray-500 uppercase">Unidade</th>
+          <th class="text-left px-3 py-2 font-semibold text-gray-500 uppercase">Bloco</th>
+          <th class="text-left px-3 py-2 font-semibold text-gray-500 uppercase">Garagens</th>
+          <th class="text-left px-3 py-2 font-semibold text-gray-500 uppercase">Hobby Box</th>
+          <th class="text-right px-3 py-2 font-semibold text-gray-500 uppercase">Área Priv.</th>
+          <th class="text-left px-3 py-2 font-semibold text-gray-500 uppercase">Tabela</th>
+          <th class="text-center px-3 py-2 font-semibold text-gray-500 uppercase">Status</th>
+          <th class="px-3 py-2"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for nu in neg_unidades %}
+        {% with u=nu.unidade %}
+        <tr class="hover:bg-gray-50">
+          <td class="px-3 py-2 font-bold text-gray-800">{{ u.numero }}</td>
+          <td class="px-3 py-2 text-gray-600">{{ u.bloco.nome }}</td>
+          <td class="px-3 py-2 text-gray-600">
+            {% for d in u.designacoes.all %}{% if d.tipo == 'garagem_carro' or d.tipo == 'garagem_moto' %}{{ d.nome }} {% endif %}{% endfor %}
+            {% for c in u.complementares.all %}{% if c.tipo and 'aragem' in c.tipo.nome %}{{ c.numero }} {% endif %}{% endfor %}
+          </td>
+          <td class="px-3 py-2 text-gray-600">
+            {% for d in u.designacoes.all %}{% if d.tipo == 'hobby_box' %}{{ d.nome }} {% endif %}{% endfor %}
+            {% for c in u.complementares.all %}{% if c.tipo and 'obby' in c.tipo.nome %}{{ c.numero }} {% endif %}{% for d in c.designacoes.all %}{% if d.tipo == 'hobby_box' %}({{ d.nome }}) {% endif %}{% endfor %}{% endfor %}
+          </td>
+          <td class="px-3 py-2 text-right text-gray-700">{{ u.area_privativa|brl_area:2 }} m²</td>
+          <td class="px-3 py-2 text-gray-500">{{ nu.tabela_item.tabela.nome|default:'—' }}</td>
+          <td class="px-3 py-2 text-center">
+            {% if u.status %}<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">{{ u.status }}</span>{% else %}—{% endif %}
+          </td>
+          <td class="px-3 py-2 text-right">
+            {% if neg.status == 'ativa' %}
+            <form method="post" action="{% url 'negociacoes:negociacao_unidade_remove' neg.pk nu.pk %}">
+              {% csrf_token %}
+              <button type="submit" class="text-gray-300 hover:text-red-500 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endwith %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-sm text-gray-400 mb-4">Nenhuma unidade vinculada.</p>
+  {% endif %}
+
+  {% if neg.status == 'ativa' and unidades_disponiveis %}
+  <form method="post" action="{% url 'negociacoes:negociacao_unidade_add' neg.pk %}" class="flex flex-wrap gap-2">
+    {% csrf_token %}
+    <select name="unidade_id" class="flex-1 min-w-48 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand transition">
+      <option value="">Selecionar unidade…</option>
+      {% for u in unidades_disponiveis %}
+      <option value="{{ u.pk }}">{{ u.bloco.nome }} / {{ u.numero }}</option>
+      {% endfor %}
+    </select>
+    <select name="tabela_id" class="flex-1 min-w-40 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand transition">
+      <option value="">Sem tabela</option>
+      {% for t in tabelas_disponiveis %}
+      <option value="{{ t.pk }}">{{ t.nome }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="px-4 py-2 bg-brand hover:bg-brand-dark text-white rounded-lg text-sm font-medium transition">
+      Adicionar unidade
+    </button>
+  </form>
+  {% endif %}
+</div>
+
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
 
   <!-- Partes -->
@@ -76,6 +161,21 @@
         <div>
           <p class="text-sm font-medium text-gray-800">{{ parte.pessoa.nome_exibicao }}</p>
           <p class="text-xs text-gray-400">{{ parte.get_tipo_display }}</p>
+          {% if parte.pessoa.tipo == 'pf' and parte.pessoa.conjuge and parte.tipo in "proponente,segundo_proponente" %}
+          <p class="text-xs text-gray-400 mt-0.5">
+            Cônjuge: <a href="{% url 'pessoas:pessoa_detail' parte.pessoa.conjuge.pk %}"
+                        class="text-brand hover:underline">{{ parte.pessoa.conjuge.nome_exibicao }}</a>
+          </p>
+          {% endif %}
+          {% if parte.pessoa.tipo == 'pj' %}
+          {% for rep in parte.pessoa.representantes_legais.all %}
+          <p class="text-xs text-gray-400 mt-0.5">
+            Rep.: <a href="{% url 'pessoas:pessoa_detail' rep.pessoa_fisica.pk %}"
+                     class="text-brand hover:underline">{{ rep.pessoa_fisica.nome_exibicao }}</a>
+            {% if rep.cargo %}<span class="text-gray-300"> · {{ rep.cargo }}</span>{% endif %}
+          </p>
+          {% endfor %}
+          {% endif %}
         </div>
         {% if neg.status == 'ativa' %}
         <form method="post" action="{% url 'negociacoes:parte_remove' neg.pk parte.pk %}">
@@ -113,16 +213,14 @@
     {% endif %}
   </div>
 
-  <!-- Informações da unidade -->
+  <!-- Empreendimento + Observações -->
   <div class="bg-white border border-gray-200 rounded-xl p-6">
-    <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">Unidade</h2>
     <dl class="space-y-3">
-      {% include 'core/_detail_row.html' with label='Unidade' value=neg.unidade.numero %}
-      {% include 'core/_detail_row.html' with label='Bloco' value=neg.unidade.bloco.nome %}
       {% include 'core/_detail_row.html' with label='Empreendimento' value=neg.empreendimento.nome %}
-      {% include 'core/_detail_row.html' with label='Tipologia' value=neg.unidade.tipologia %}
-      {% include 'core/_detail_row.html' with label='Área Privativa' value=neg.unidade.area_privativa|brl_area:2 %}
-      {% include 'core/_detail_row.html' with label='Situação' value=neg.unidade.status %}
+      {% include 'core/_detail_row.html' with label='Data' value=neg.data_abertura|date:'d/m/Y' %}
+      {% if neg.desconto_percentual %}
+      {% include 'core/_detail_row.html' with label='Desconto' value=neg.desconto_percentual %}
+      {% endif %}
     </dl>
     {% if neg.observacoes %}
     <div class="mt-4 border-t border-gray-100 pt-4">
@@ -274,6 +372,95 @@
   </details>
   {% endif %}
 </div>
+
+<!-- Resumo Tabela × Proposto × Diferença -->
+{% if resumo.linhas or resumo.total_proposto %}
+<div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
+  <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">Resumo financeiro</h2>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 border-b border-gray-200">
+        <tr>
+          <th class="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Série</th>
+          <th class="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Tabela</th>
+          <th class="text-right px-4 py-2 text-xs font-semibold text-brand uppercase tracking-wide">Proposto</th>
+          <th class="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Diferença</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for linha in resumo.linhas %}
+        <tr class="hover:bg-gray-50">
+          <td class="px-4 py-2.5 font-medium text-gray-700">{{ linha.label }}</td>
+          <td class="px-4 py-2.5 text-right text-gray-600">{% if linha.tabela %}{{ linha.tabela|brl_moeda }}{% else %}<span class="text-gray-300">—</span>{% endif %}</td>
+          <td class="px-4 py-2.5 text-right font-semibold text-brand">{{ linha.proposto|brl_moeda }}</td>
+          <td class="px-4 py-2.5 text-right {% if linha.diferenca < 0 %}text-red-600{% elif linha.diferenca > 0 %}text-green-600{% else %}text-gray-400{% endif %}">
+            {% if linha.diferenca %}{{ linha.diferenca|brl_moeda }}{% else %}—{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot class="border-t-2 border-gray-200">
+        <tr class="bg-gray-50">
+          <td class="px-4 py-2.5 font-bold text-gray-800">Total</td>
+          <td class="px-4 py-2.5 text-right font-bold text-gray-700">{{ resumo.total_tabela|brl_moeda }}</td>
+          <td class="px-4 py-2.5 text-right font-bold text-brand">{{ resumo.total_proposto|brl_moeda }}</td>
+          <td class="px-4 py-2.5 text-right font-bold {% if resumo.diferenca_total < 0 %}text-red-600{% elif resumo.diferenca_total > 0 %}text-green-600{% else %}text-gray-400{% endif %}">
+            {{ resumo.diferenca_total|brl_moeda }}
+          </td>
+        </tr>
+        {% if resumo.desconto_pct %}
+        <tr class="bg-amber-50">
+          <td class="px-4 py-2 text-sm text-amber-700">Desconto ({{ resumo.desconto_pct }}%)</td>
+          <td class="px-4 py-2"></td>
+          <td class="px-4 py-2 text-right text-sm text-amber-700">- {{ resumo.valor_desconto|brl_moeda }}</td>
+          <td class="px-4 py-2"></td>
+        </tr>
+        <tr class="bg-amber-50 border-t border-amber-200">
+          <td class="px-4 py-2.5 font-bold text-amber-800">Total c/ desconto</td>
+          <td class="px-4 py-2.5"></td>
+          <td class="px-4 py-2.5 text-right font-bold text-amber-800">{{ resumo.total_com_desconto|brl_moeda }}</td>
+          <td class="px-4 py-2.5"></td>
+        </tr>
+        {% endif %}
+      </tfoot>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Calendário de parcelas -->
+{% if calendario %}
+<div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
+  <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">
+    Calendário de parcelas
+    <span class="ml-2 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">{{ calendario|length }}</span>
+  </h2>
+  <div class="overflow-x-auto">
+    <table class="w-full text-xs">
+      <thead class="bg-gray-50 border-b border-gray-200">
+        <tr>
+          <th class="text-right px-3 py-2 font-semibold text-gray-500 uppercase tracking-wide w-12">Ordem</th>
+          <th class="text-left px-3 py-2 font-semibold text-gray-500 uppercase tracking-wide">Mês / Data</th>
+          <th class="text-left px-3 py-2 font-semibold text-gray-500 uppercase tracking-wide">Série</th>
+          <th class="text-right px-3 py-2 font-semibold text-gray-500 uppercase tracking-wide">Valor</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for p in calendario %}
+        <tr class="hover:bg-gray-50">
+          <td class="px-3 py-2 text-right text-gray-400">{{ p.ordem }}</td>
+          <td class="px-3 py-2 font-medium text-gray-800">
+            {% if p.data %}{{ p.data|date:'M/Y'|upper }}{% else %}<span class="text-gray-300">—</span>{% endif %}
+          </td>
+          <td class="px-3 py-2 text-gray-500">{{ p.serie_label }}</td>
+          <td class="px-3 py-2 text-right font-medium text-brand">{{ p.valor|brl_moeda }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
 
 <!-- Histórico de etapas -->
 <div class="mt-4">

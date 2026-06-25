@@ -13,6 +13,8 @@ urlpatterns = [
     path('pessoas/<int:pk>/excluir/', views.PessoaDeleteView.as_view(), name='pessoa_delete'),
     path('pessoas/<int:pk>/restaurar/', views.PessoaRestoreView.as_view(), name='pessoa_restore'),
     path('pessoas/<int:pk>/pdf/', views.pessoa_pdf, name='pessoa_pdf'),
+    path('pessoas/<int:pk>/representantes/adicionar/', views.representante_add, name='representante_add'),
+    path('pessoas/<int:pk>/representantes/<int:rep_pk>/remover/', views.representante_remove, name='representante_remove'),
     path('pessoas/<int:pk>/papeis/adicionar/', views.papel_add, name='papel_add'),
     path('pessoas/<int:pk>/papeis/<int:papel_pk>/remover/', views.papel_remove, name='papel_remove'),
     # Configurações

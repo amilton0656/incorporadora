@@ -4,7 +4,11 @@ from django.contrib.auth.models import User
 from django.db import models
 from simple_history.models import HistoricalRecords
 
+import datetime as _dt
 from apps.core.models import Empresa, SoftDeleteModel
+
+def _date_hoje():
+    return _dt.date.today()
 from apps.empreendimentos.models import Empreendimento, Unidade
 from apps.pessoas.models import Pessoa
 from apps.vendas.models import TabelaSerie, TabelaVendasItem
@@ -65,20 +69,18 @@ class Negociacao(SoftDeleteModel):
         (STATUS_DISTRATO,  'Distrato'),
     ]
 
-    numero         = models.PositiveIntegerField('Número', unique=True, editable=False)
-    empresa        = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name='negociacoes')
-    empreendimento = models.ForeignKey(Empreendimento, on_delete=models.PROTECT, related_name='negociacoes')
-    unidade        = models.ForeignKey(Unidade, on_delete=models.PROTECT, related_name='negociacoes')
-    tabela_item    = models.ForeignKey(TabelaVendasItem, on_delete=models.SET_NULL,
-                                       null=True, blank=True, related_name='negociacoes',
-                                       verbose_name='Item da tabela de vendas')
-    etapa          = models.ForeignKey(EtapaWorkflow, on_delete=models.PROTECT, related_name='negociacoes')
-    status         = models.CharField('Status', max_length=10, choices=STATUS_CHOICES, default=STATUS_ATIVA)
-    data_abertura  = models.DateField('Data de abertura', auto_now_add=True)
-    observacoes    = models.TextField('Observações', blank=True)
-    criado_em      = models.DateTimeField(auto_now_add=True)
-    atualizado_em  = models.DateTimeField(auto_now=True)
-    history        = HistoricalRecords(table_name='inc_historical_negociacao')
+    numero              = models.PositiveIntegerField('Número', unique=True, editable=False)
+    empresa             = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name='negociacoes')
+    empreendimento      = models.ForeignKey(Empreendimento, on_delete=models.PROTECT, related_name='negociacoes')
+    etapa               = models.ForeignKey(EtapaWorkflow, on_delete=models.PROTECT, related_name='negociacoes')
+    status              = models.CharField('Status', max_length=10, choices=STATUS_CHOICES, default=STATUS_ATIVA)
+    data_abertura       = models.DateField('Data da proposta', default=_date_hoje)
+    desconto_percentual = models.DecimalField('Desconto (%)', max_digits=5, decimal_places=2,
+                                              default=Decimal('0'), blank=True)
+    observacoes         = models.TextField('Observações', blank=True)
+    criado_em           = models.DateTimeField(auto_now_add=True)
+    atualizado_em       = models.DateTimeField(auto_now=True)
+    history             = HistoricalRecords(table_name='inc_historical_negociacao')
 
     class Meta:
         db_table = 'inc_negociacao'
@@ -87,7 +89,7 @@ class Negociacao(SoftDeleteModel):
         verbose_name_plural = 'Negociações'
 
     def __str__(self):
-        return f'#{self.numero} — {self.unidade}'
+        return f'#{self.numero}'
 
     def save(self, *args, **kwargs):
         if not self.numero:
@@ -101,8 +103,33 @@ class Negociacao(SoftDeleteModel):
         return parte.pessoa if parte else None
 
     @property
+    def unidade_principal(self):
+        """Primeira unidade principal (para compatibilidade)."""
+        nu = self.unidades.select_related('unidade').first()
+        return nu.unidade if nu else None
+
+    @property
     def valor_negociado(self):
         return sum((s.valor_total for s in self.series.all()), Decimal('0'))
+
+
+class NegociacaoUnidade(models.Model):
+    """Unidades vinculadas a uma negociação (suporte a múltiplas)."""
+    negociacao  = models.ForeignKey(Negociacao, on_delete=models.CASCADE, related_name='unidades')
+    unidade     = models.ForeignKey(Unidade, on_delete=models.PROTECT, related_name='negociacao_unidades')
+    tabela_item = models.ForeignKey(TabelaVendasItem, on_delete=models.SET_NULL,
+                                    null=True, blank=True, related_name='+',
+                                    verbose_name='Item da tabela de vendas')
+
+    class Meta:
+        db_table = 'inc_negociacao_unidade'
+        unique_together = ('negociacao', 'unidade')
+        ordering = ['unidade__bloco__ordem', 'unidade__ordem', 'unidade__numero']
+        verbose_name = 'Unidade da Negociação'
+        verbose_name_plural = 'Unidades da Negociação'
+
+    def __str__(self):
+        return f'#{self.negociacao.numero} — {self.unidade.numero}'
 
 
 # ─── Partes ────────────────────────────────────────────────────────────────────

@@ -88,8 +88,11 @@
         {% endwith %}
 
         <p class="text-xs text-gray-500 mt-0.5 truncate">
-          <span class="font-medium">{{ neg.unidade.numero }}</span>
-          — {{ neg.unidade.bloco.empreendimento.nome }}
+          {% with first_nu=neg.unidades.first %}
+          {% if first_nu %}<span class="font-medium">{{ first_nu.unidade.numero }}</span>
+          {% if neg.unidades.count > 1 %} +{{ neg.unidades.count|add:"-1" }}{% endif %}
+          — {% endif %}{{ neg.empreendimento.nome }}
+          {% endwith %}
         </p>
 
         {% with valor=neg.valor_negociado %}

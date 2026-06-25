@@ -209,6 +209,23 @@
     </div>
     {% endif %}
 
+    <!-- Cônjuge (só PF) -->
+    <div id="secao-conjuge" class="bg-white border border-gray-200 rounded-xl p-6 mb-4">
+      <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-1">Cônjuge</h2>
+      <p class="text-xs text-gray-400 mb-4">Se esta pessoa for casada, vincule aqui. O vínculo é bidirecional — ao salvar, o cônjuge também ficará vinculado automaticamente.</p>
+      <div class="flex gap-3 items-start">
+        <div class="flex-1">
+          {{ form.conjuge }}
+          {% if form.conjuge.errors %}<p class="text-xs text-red-500 mt-1">{{ form.conjuge.errors.0 }}</p>{% endif %}
+        </div>
+        <a href="{% url 'pessoas:pessoa_create' %}" target="_blank"
+           class="inline-flex items-center gap-1 text-xs text-brand hover:underline whitespace-nowrap mt-2.5">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          Cadastrar cônjuge
+        </a>
+      </div>
+    </div>
+
     <!-- Observações -->
     <div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
       <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">Observações</h2>
@@ -231,6 +248,13 @@
   </form>
 </div>
 
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css">
+<style>
+  .ts-wrapper.single .ts-control { border-radius:.5rem; border-color:#d1d5db; padding:.625rem 1rem; font-size:.875rem; }
+  .ts-wrapper.single .ts-control:focus-within { border-color:#1B3A6B; box-shadow:0 0 0 2px rgba(27,58,107,.2); }
+  .ts-dropdown { border-radius:.5rem; font-size:.875rem; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 <script src="{% static 'js/masks.js' %}"></script>
 <script src="{% static 'js/cep.js' %}"></script>
 <script>
@@ -241,16 +265,23 @@ initCepLookup('id_cep', {
   estado:     'id_estado',
   numero:     'id_numero',
 });
+// Tom Select no campo cônjuge
+const selConjuge = document.getElementById('id_conjuge');
+if (selConjuge) {
+  new TomSelect(selConjuge, { placeholder: 'Buscar cônjuge…', allowEmptyOption: true, maxOptions: 100 });
+}
 </script>
 <script>
 (function () {
-  var pf = document.getElementById('secao-pf');
-  var pj = document.getElementById('secao-pj');
-  var radios = document.querySelectorAll('input[name="tipo"]');
+  var pf      = document.getElementById('secao-pf');
+  var pj      = document.getElementById('secao-pj');
+  var conjuge = document.getElementById('secao-conjuge');
+  var radios  = document.querySelectorAll('input[name="tipo"]');
 
   function toggle() {
     var val = document.querySelector('input[name="tipo"]:checked').value;
-    pf.style.display = val === 'pf' ? '' : 'none';
+    pf.style.display      = val === 'pf' ? '' : 'none';
+    if (conjuge) conjuge.style.display = val === 'pf' ? '' : 'none';
     pj.style.display = val === 'pj' ? '' : 'none';
   }
 

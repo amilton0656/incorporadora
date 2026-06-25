@@ -1,5 +1,6 @@
 {% extends 'base_intranet.html' %}
-{% block title %}{% if object %}Editar Negociação #{{ object.numero }}{% else %}Nova Negociação{% endif %}{% endblock %}
+{% load formatters %}
+{% block title %}Nova Proposta{% endblock %}
 
 {% block breadcrumb %}
 <nav class="text-sm text-gray-400 mb-6">
@@ -7,51 +8,287 @@
   <span class="mx-2">/</span>
   <a href="{% url 'negociacoes:kanban' %}" class="hover:text-brand transition">Negociações</a>
   <span class="mx-2">/</span>
-  <span class="text-gray-700 font-medium">{% if object %}Editar #{{ object.numero }}{% else %}Nova{% endif %}</span>
+  <span class="text-gray-700 font-medium">Nova Proposta</span>
 </nav>
 {% endblock %}
 
 {% block inner_content %}
-<div class="max-w-2xl">
-  <h1 class="text-2xl font-semibold text-gray-800 mb-6">
-    {% if object %}Editar Negociação #{{ object.numero }}{% else %}Nova Negociação{% endif %}
-  </h1>
+<div class="max-w-3xl">
+  <h1 class="text-2xl font-semibold text-gray-800 mb-6">Nova Proposta</h1>
+
+  <!-- Tom Select -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css">
+  <style>
+    .ts-wrapper.single .ts-control { border-radius:.5rem; border-color:#d1d5db; padding:.625rem 1rem; font-size:.875rem; }
+    .ts-wrapper.single .ts-control:focus-within { border-color:#1B3A6B; box-shadow:0 0 0 2px rgba(27,58,107,.2); }
+    .ts-dropdown { border-radius:.5rem; font-size:.875rem; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 
   <form method="post">
     {% csrf_token %}
-    <div class="bg-white border border-gray-200 rounded-xl p-6 mb-6 space-y-4">
-      <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">Produto</h2>
 
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Empreendimento</label>
-        {{ form.empreendimento }}
-        {% if form.empreendimento.errors %}<p class="text-xs text-red-500 mt-1">{{ form.empreendimento.errors.0 }}</p>{% endif %}
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Unidade</label>
-        {{ form.unidade }}
-        {% if form.unidade.errors %}<p class="text-xs text-red-500 mt-1">{{ form.unidade.errors.0 }}</p>{% endif %}
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Item da tabela de vendas <span class="text-gray-400 font-normal">(opcional)</span></label>
-        {{ form.tabela_item }}
-        {% if form.tabela_item.errors %}<p class="text-xs text-red-500 mt-1">{{ form.tabela_item.errors.0 }}</p>{% endif %}
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Observações</label>
-        {{ form.observacoes }}
+    <!-- Identificação -->
+    <div class="bg-white border border-gray-200 rounded-xl p-6 mb-4">
+      <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">Identificação</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Data <span class="text-red-500">*</span></label>
+          <input type="date" name="data_abertura" required value="{% now 'Y-m-d' %}"
+                 class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand transition">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Empreendimento <span class="text-red-500">*</span></label>
+          <select name="empreendimento" id="sel-emp" required
+                  class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand transition">
+            <option value="">Selecionar…</option>
+            {% for emp in empreendimentos %}
+            <option value="{{ emp.pk }}" {% if preselect_empreendimento == emp.pk|stringformat:"s" %}selected{% endif %}>{{ emp.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Tabela de vendas</label>
+          <select name="tabela_id" id="sel-tabela"
+                  class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand transition">
+            <option value="">Selecionar…</option>
+            {% for t in tabelas %}
+            <option value="{{ t.pk }}" data-emp="{{ t.empreendimento_id }}">{{ t.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
       </div>
     </div>
 
-    <div class="flex gap-3">
-      <button type="submit" class="px-6 py-2.5 bg-brand hover:bg-brand-dark text-white rounded-lg text-sm font-semibold transition">
-        {% if object %}Salvar{% else %}Criar negociação{% endif %}
+    <!-- Comercial -->
+    <div class="bg-white border border-gray-200 rounded-xl p-6 mb-4">
+      <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">Comercial</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Imobiliária</label>
+          <select name="imobiliaria_id" id="sel-imob"
+                  class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand transition">
+            <option value="">Selecionar…</option>
+            {% for p in pessoas %}
+            <option value="{{ p.pk }}">{{ p.nome_exibicao }}</option>
+            {% endfor %}
+          </select>
+          <a href="{% url 'pessoas:pessoa_create' %}" target="_blank"
+             class="text-xs text-brand hover:underline mt-1 inline-block">+ Cadastrar nova pessoa</a>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Corretor</label>
+          <select name="corretor_id" id="sel-corretor"
+                  class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand transition">
+            <option value="">Selecionar…</option>
+            {% for p in pessoas %}
+            <option value="{{ p.pk }}">{{ p.nome_exibicao }}</option>
+            {% endfor %}
+          </select>
+          <a href="{% url 'pessoas:pessoa_create' %}" target="_blank"
+             class="text-xs text-brand hover:underline mt-1 inline-block">+ Cadastrar nova pessoa</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Compradores (proponentes e cônjuges) -->
+    <div class="bg-white border border-gray-200 rounded-xl p-6 mb-4">
+      <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">Compradores</h2>
+      <div id="proponentes-list" class="space-y-2 mb-3">
+        <!-- Linha inicial: Proponente -->
+        <div class="flex gap-2 items-center proponente-row">
+          <select name="partes_tipo" class="w-44 px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand transition">
+            {% for valor, label in tipos_parte %}{% if valor in "proponente,conjuge_proponente,segundo_proponente,conjuge_segundo,interveniente" %}
+            <option value="{{ valor }}" {% if valor == 'proponente' %}selected{% endif %}>{{ label }}</option>
+            {% endif %}{% endfor %}
+          </select>
+          <select name="partes_pessoa" class="comprador-sel flex-1 px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand transition"
+                  onchange="onProponenteChange(this)">
+            <option value="">Selecionar…</option>
+            {% for p in pessoas %}<option value="{{ p.pk }}" data-nome="{{ p.nome_exibicao }}">{{ p.nome_exibicao }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <!-- Sugestão de cônjuge -->
+      <div id="sugestao-conjuge" class="hidden mb-3 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
+        <span id="sugestao-texto"></span>
+        <div id="sugestao-botoes" class="flex flex-wrap gap-2 mt-2"></div>
+      </div>
+
+      <div class="flex items-center gap-4">
+        <button type="button" onclick="addComprador()"
+                class="inline-flex items-center gap-1.5 text-xs font-medium text-brand hover:underline">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          Adicionar comprador
+        </button>
+        <a href="{% url 'pessoas:pessoa_create' %}" target="_blank"
+           class="text-xs text-gray-400 hover:text-brand hover:underline">
+          Não cadastrado? Cadastrar →
+        </a>
+      </div>
+    </div>
+
+    <!-- Unidades -->
+    <div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
+      <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">Unidades</h2>
+      <div id="unidades-list" class="space-y-2 mb-3"></div>
+      <button type="button" onclick="addUnidade()"
+              class="inline-flex items-center gap-1.5 text-xs font-medium text-brand hover:underline">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        Adicionar unidade
       </button>
-      <a href="{% if object %}{% url 'negociacoes:negociacao_detail' object.pk %}{% else %}{% url 'negociacoes:kanban' %}{% endif %}"
-         class="px-6 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition">
+    </div>
+
+    <!-- Ações -->
+    <div class="flex items-center gap-3">
+      <button type="submit"
+              class="px-6 py-2.5 bg-brand hover:bg-brand-dark text-white rounded-lg text-sm font-semibold transition">
+        Criar proposta
+      </button>
+      <a href="{% url 'negociacoes:kanban' %}"
+         class="px-5 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-500 hover:bg-gray-50 transition">
         Cancelar
       </a>
     </div>
   </form>
 </div>
+
+<!-- Templates -->
+<template id="tpl-comprador">
+  <div class="flex gap-2 items-center proponente-row">
+    <select name="partes_tipo" class="w-44 px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand transition">
+      {% for valor, label in tipos_parte %}{% if valor in "proponente,conjuge_proponente,segundo_proponente,conjuge_segundo,interveniente" %}
+      <option value="{{ valor }}">{{ label }}</option>
+      {% endif %}{% endfor %}
+    </select>
+    <select name="partes_pessoa" class="comprador-sel flex-1 px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand transition"
+            onchange="onProponenteChange(this)">
+      <option value="">Selecionar…</option>
+      {% for p in pessoas %}<option value="{{ p.pk }}" data-nome="{{ p.nome_exibicao }}">{{ p.nome_exibicao }}</option>{% endfor %}
+    </select>
+    <button type="button" onclick="this.closest('.proponente-row').remove()"
+            class="text-gray-300 hover:text-red-500 transition flex-shrink-0">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+    </button>
+  </div>
+</template>
+
+<template id="tpl-unidade">
+  <div class="flex gap-2 items-center unidade-row">
+    <select name="unidades_id" class="unidade-sel flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand transition">
+      <option value="">Selecionar unidade…</option>
+      {% for u in unidades %}
+      <option value="{{ u.pk }}" data-emp="{{ u.bloco.empreendimento_id }}">{{ u.bloco.nome }} / {{ u.numero }}</option>
+      {% endfor %}
+    </select>
+    <button type="button" onclick="this.closest('.unidade-row').remove()"
+            class="text-gray-300 hover:text-red-500 transition flex-shrink-0">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+    </button>
+  </div>
+</template>
+
+{% load static %}
+<script src="{% static 'js/masks.js' %}"></script>
+<script>
+function initTS(el, ph) {
+  if (!el || el._tomSelect) return;
+  new TomSelect(el, { placeholder: ph || 'Digitar para buscar…', allowEmptyOption: true, maxOptions: 100 });
+}
+
+function addComprador(tipoDefault, pessoaId, pessoaNome) {
+  const frag = document.getElementById('tpl-comprador').content.cloneNode(true);
+  const list  = document.getElementById('proponentes-list');
+  if (tipoDefault) frag.querySelector('[name="partes_tipo"]').value = tipoDefault;
+  list.appendChild(frag);
+  const sel = list.lastElementChild.querySelector('.comprador-sel');
+  initTS(sel, 'Selecionar…');
+  // Pré-seleciona a pessoa se informada (ex: sugestão de cônjuge)
+  if (pessoaId && sel._tomSelect) {
+    sel._tomSelect.setValue(String(pessoaId));
+  }
+}
+
+function onProponenteChange(sel) {
+  const pessoaId = sel.value;
+  const tipo = sel.closest('.proponente-row')?.querySelector('[name="partes_tipo"]')?.value;
+  if (!pessoaId || tipo !== 'proponente') return;
+
+  // Busca cônjuge sugerido via API
+  fetch(`/negociacoes/api/conjuge/${pessoaId}/`)
+    .then(r => r.json())
+    .then(data => {
+      const box   = document.getElementById('sugestao-conjuge');
+      const texto = document.getElementById('sugestao-texto');
+      const bots  = document.getElementById('sugestao-botoes');
+      if (data.conjuges && data.conjuges.length > 0) {
+        const nomes = data.conjuges.map(c => c.nome).join(', ');
+        texto.textContent = `Cônjuge(s) encontrado(s) em negociações anteriores: ${nomes}`;
+        bots.innerHTML = '';
+        data.conjuges.forEach(c => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition';
+          btn.textContent = `+ Adicionar ${c.nome}`;
+          btn.onclick = () => {
+            addComprador('conjuge_proponente', c.pk, c.nome);
+            box.classList.add('hidden');
+          };
+          bots.appendChild(btn);
+        });
+        const btnIgn = document.createElement('button');
+        btnIgn.type = 'button';
+        btnIgn.className = 'px-3 py-1 border border-blue-300 text-blue-600 rounded-lg text-xs transition';
+        btnIgn.textContent = 'Ignorar';
+        btnIgn.onclick = () => box.classList.add('hidden');
+        bots.appendChild(btnIgn);
+        box.classList.remove('hidden');
+      } else {
+        box.classList.add('hidden');
+      }
+    })
+    .catch(() => {});
+}
+
+function addUnidade(preId) {
+  const frag = cloneAndFilter('tpl-unidade');
+  if (preId) frag.querySelector('.unidade-sel').value = preId;
+  document.getElementById('unidades-list').appendChild(frag);
+}
+
+function cloneAndFilter(tplId) {
+  const frag  = document.getElementById(tplId).content.cloneNode(true);
+  const empId = document.getElementById('sel-emp').value;
+  if (empId) {
+    frag.querySelectorAll('.unidade-sel option').forEach(o => {
+      if (o.value && o.dataset.emp !== empId) o.style.display = 'none';
+    });
+  }
+  return frag;
+}
+
+// Filtro empreendimento
+document.getElementById('sel-emp').addEventListener('change', function () {
+  const id = this.value;
+  document.querySelectorAll('#sel-tabela option').forEach(o => {
+    if (!o.value) return;
+    o.style.display = (!id || o.dataset.emp === id) ? '' : 'none';
+  });
+  document.querySelectorAll('.unidade-sel option').forEach(o => {
+    if (!o.value) return;
+    o.style.display = (!id || o.dataset.emp === id) ? '' : 'none';
+  });
+});
+
+// Pré-seleção via espelho
+const preUnidade = "{{ preselect_unidade }}";
+if (preUnidade) addUnidade(preUnidade);
+
+// Tom Select nos campos fixos
+initTS(document.getElementById('sel-imob'),     'Buscar imobiliária…');
+initTS(document.getElementById('sel-corretor'), 'Buscar corretor…');
+document.querySelectorAll('.comprador-sel').forEach(el => initTS(el, 'Selecionar…'));
+if (typeof initMasks === 'function') initMasks();
+</script>
 {% endblock %}

@@ -10,7 +10,7 @@ from django.views.generic import CreateView, DetailView, ListView, UpdateView, V
 from apps.core.mixins import EmpresaQuerysetMixin
 from apps.core.models import Empresa
 from apps.core.pdf import render_to_pdf
-from .models import Pessoa, PessoaPapel, TipoPapel
+from .models import Pessoa, PessoaPapel, RepresentanteLegal, TipoPapel
 
 _CAMPOS_IGNORADOS = {
     'deletado_em', 'deletado_por', 'atualizado_em',
@@ -162,12 +162,23 @@ class PessoaForm(django_forms.ModelForm):
             'razao_social', 'nome_fantasia', 'cnpj', 'inscricao_estadual',
             'email', 'telefone', 'celular',
             'cep', 'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'estado',
-            'observacoes',
+            'observacoes', 'conjuge',
         ]
         widgets = {
             'data_nascimento': django_forms.DateInput(attrs={'type': 'date'}),
             'observacoes': django_forms.Textarea(attrs={'rows': 3}),
         }
+
+    def __init__(self, *args, empresa=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if empresa:
+            qs = Pessoa.objects.filter(empresa=empresa)
+            if self.instance and self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            self.fields['conjuge'].queryset = qs
+        else:
+            self.fields['conjuge'].queryset = Pessoa.objects.none()
+        self.fields['conjuge'].required = False
 
     def clean(self):
         cleaned = super().clean()
@@ -219,7 +230,10 @@ class PessoaDetailView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['papeis'] = self.object.papeis.select_related('papel').all()
+        ctx['representantes'] = self.object.representantes_legais.select_related('pessoa_fisica').all() \
+            if self.object.tipo == Pessoa.PJ else []
         empresa = _get_empresa_atual(self.request)
+        ctx['pessoas_pf'] = Pessoa.objects.filter(empresa=empresa, tipo=Pessoa.PF) if empresa else []
         papeis_ids = self.object.papeis.values_list('papel_id', flat=True)
         ctx['papeis_disponiveis'] = (
             TipoPapel.objects.filter(empresa=empresa).exclude(pk__in=papeis_ids)
@@ -248,7 +262,8 @@ class PessoaCreateView(LoginRequiredMixin, CreateView):
     template_name = 'pessoas/pessoa_form.html'
 
     def get_form(self, form_class=None):
-        return _style_form(super().get_form(form_class))
+        form = PessoaForm(**self.get_form_kwargs(), empresa=_get_empresa_atual(self.request))
+        return _style_form(form)
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -273,7 +288,8 @@ class PessoaUpdateView(LoginRequiredMixin, UpdateView):
     template_name = 'pessoas/pessoa_form.html'
 
     def get_form(self, form_class=None):
-        return _style_form(super().get_form(form_class))
+        form = PessoaForm(**self.get_form_kwargs(), empresa=_get_empresa_atual(self.request))
+        return _style_form(form)
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -309,6 +325,31 @@ class PessoaRestoreView(LoginRequiredMixin, View):
         obj.restaurar()
         messages.success(request, f'"{obj.nome_exibicao}" restaurado(a).')
         return redirect('pessoas:pessoa_detail', pk=obj.pk)
+
+
+@login_required
+def representante_add(request, pk):
+    pj = get_object_or_404(Pessoa.objects, pk=pk, tipo=Pessoa.PJ)
+    if request.method == 'POST':
+        pf_id = request.POST.get('pessoa_id')
+        cargo = request.POST.get('cargo', '').strip()
+        if pf_id:
+            pf = get_object_or_404(Pessoa.objects, pk=pf_id, tipo=Pessoa.PF)
+            RepresentanteLegal.objects.get_or_create(
+                pessoa_juridica=pj, pessoa_fisica=pf,
+                defaults={'cargo': cargo},
+            )
+            messages.success(request, f'{pf.nome_exibicao} adicionado como representante legal.')
+    return redirect('pessoas:pessoa_detail', pk=pk)
+
+
+@login_required
+def representante_remove(request, pk, rep_pk):
+    pj = get_object_or_404(Pessoa.objects, pk=pk, tipo=Pessoa.PJ)
+    if request.method == 'POST':
+        RepresentanteLegal.objects.filter(pk=rep_pk, pessoa_juridica=pj).delete()
+        messages.success(request, 'Representante removido.')
+    return redirect('pessoas:pessoa_detail', pk=pk)
 
 
 @login_required

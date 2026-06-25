@@ -12,8 +12,14 @@ urlpatterns = [
     path('negociacoes/nova/', views.NegociacaoCreateView.as_view(), name='negociacao_create'),
     path('negociacoes/<int:pk>/', views.NegociacaoDetailView.as_view(), name='negociacao_detail'),
     path('negociacoes/<int:pk>/editar/', views.NegociacaoUpdateView.as_view(), name='negociacao_update'),
+    path('negociacoes/<int:pk>/excluir/', views.NegociacaoDeleteView.as_view(), name='negociacao_delete'),
     # Avanço de etapa
     path('negociacoes/<int:pk>/avancar/', views.avancar_etapa, name='avancar_etapa'),
+    # API sugestões
+    path('negociacoes/api/conjuge/<int:pessoa_pk>/', views.api_conjuge_sugerido, name='api_conjuge_sugerido'),
+    # Unidades
+    path('negociacoes/<int:pk>/unidades/adicionar/', views.negociacao_unidade_add, name='negociacao_unidade_add'),
+    path('negociacoes/<int:pk>/unidades/<int:nu_pk>/remover/', views.negociacao_unidade_remove, name='negociacao_unidade_remove'),
     # Partes
     path('negociacoes/<int:pk>/partes/adicionar/', views.parte_add, name='parte_add'),
     path('negociacoes/<int:pk>/partes/<int:parte_pk>/remover/', views.parte_remove, name='parte_remove'),

@@ -8,9 +8,10 @@ class TipoPapel(SoftDeleteModel):
     empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name='tipos_papel')
     nome = models.CharField('Nome', max_length=50)
     criado_em = models.DateTimeField(auto_now_add=True)
-    history = HistoricalRecords()
+    history = HistoricalRecords(table_name='inc_historical_tipo_papel')
 
     class Meta:
+        db_table = 'inc_tipo_papel'
         ordering = ['nome']
         unique_together = ('empresa', 'nome')
         verbose_name = 'Tipo de Papel'
@@ -69,15 +70,39 @@ class Pessoa(SoftDeleteModel):
 
     observacoes = models.TextField('Observações', blank=True)
 
+    conjuge = models.OneToOneField(
+        'self', null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='conjuge_de',
+        verbose_name='Cônjuge',
+    )
+
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
 
-    history = HistoricalRecords()
+    history = HistoricalRecords(table_name='inc_historical_pessoa')
 
     class Meta:
+        db_table = 'inc_pessoa'
         ordering = ['nome', 'razao_social']
         verbose_name = 'Pessoa'
         verbose_name_plural = 'Pessoas'
+
+    def save(self, *args, **kwargs):
+        # Captura o cônjuge anterior antes de salvar
+        conjuge_anterior_id = None
+        if self.pk:
+            conjuge_anterior_id = Pessoa.all_objects.filter(pk=self.pk).values_list('conjuge_id', flat=True).first()
+
+        super().save(*args, **kwargs)
+
+        # Sincroniza lado B → A
+        if self.conjuge_id:
+            Pessoa.objects.filter(pk=self.conjuge_id).exclude(conjuge_id=self.pk).update(conjuge_id=self.pk)
+
+        # Se o cônjuge foi removido, limpa o outro lado
+        if conjuge_anterior_id and conjuge_anterior_id != self.conjuge_id:
+            Pessoa.objects.filter(pk=conjuge_anterior_id, conjuge_id=self.pk).update(conjuge=None)
 
     def __str__(self):
         return self.nome_exibicao
@@ -93,12 +118,40 @@ class Pessoa(SoftDeleteModel):
         return self.cpf if self.tipo == self.PF else self.cnpj
 
 
+class RepresentanteLegal(models.Model):
+    """Representante(s) legal(is) de uma Pessoa Jurídica."""
+    pessoa_juridica = models.ForeignKey(
+        Pessoa, on_delete=models.CASCADE,
+        related_name='representantes_legais',
+        verbose_name='Pessoa Jurídica',
+        limit_choices_to={'tipo': 'pj'},
+    )
+    pessoa_fisica = models.ForeignKey(
+        Pessoa, on_delete=models.PROTECT,
+        related_name='representa',
+        verbose_name='Representante',
+        limit_choices_to={'tipo': 'pf'},
+    )
+    cargo = models.CharField('Cargo', max_length=100, blank=True,
+                             help_text='Ex: Sócio-Administrador, Procurador')
+
+    class Meta:
+        db_table = 'inc_representante_legal'
+        unique_together = ('pessoa_juridica', 'pessoa_fisica')
+        verbose_name = 'Representante Legal'
+        verbose_name_plural = 'Representantes Legais'
+
+    def __str__(self):
+        return f'{self.pessoa_fisica} → {self.pessoa_juridica}'
+
+
 class PessoaPapel(models.Model):
     pessoa = models.ForeignKey(Pessoa, on_delete=models.CASCADE, related_name='papeis')
     papel = models.ForeignKey(TipoPapel, on_delete=models.PROTECT, related_name='pessoa_papeis')
     criado_em = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = 'inc_pessoa_papel'
         unique_together = ('pessoa', 'papel')
         ordering = ['papel__nome']
 
