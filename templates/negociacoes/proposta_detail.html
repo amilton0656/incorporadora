@@ -73,8 +73,8 @@
 <div class="bg-white border border-gray-200 rounded-xl px-5 py-4 mb-6 flex flex-wrap items-center gap-x-8 gap-y-2">
   {% if neg_atual %}
   <div>
-    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">Negociação</p>
-    <p class="text-sm font-semibold text-brand">Rodada #{{ neg_atual.numero }}
+    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">Proposta ativa</p>
+    <p class="text-sm font-semibold text-brand">Proposta #{{ neg_atual.numero }}
       <span class="ml-1 px-1.5 py-0.5 rounded text-xs font-normal
         {% if neg_atual.status == 'ativa' %}bg-green-100 text-green-700
         {% elif neg_atual.status == 'aprovada' %}bg-blue-100 text-blue-700
@@ -266,47 +266,7 @@
 
 </div>
 
-<!-- Rodadas de Negociação -->
-{% if todas_rodadas|length > 1 or neg.status == 'ativa' %}
-<div class="bg-white border border-gray-200 rounded-xl p-5 mb-6">
-  <div class="flex items-center justify-between mb-3">
-    <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">Rodadas</h2>
-    {% if neg.status == 'ativa' and neg_atual %}
-    <form method="post" action="{% url 'negociacoes:negociacao_nova_rodada' neg.pk %}"
-          onsubmit="return confirm('Criar nova rodada? A rodada atual será marcada como recusada.')">
-      {% csrf_token %}
-      <button type="submit"
-              class="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 bg-brand hover:bg-brand-dark text-white rounded-lg transition">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-        Nova rodada
-      </button>
-    </form>
-    {% endif %}
-  </div>
-  <div class="flex flex-wrap gap-2">
-    {% for rodada in todas_rodadas %}
-    <div class="flex items-center gap-2 px-3 py-2 rounded-lg border {% if rodada.pk == neg_atual.pk %}border-brand bg-brand/5{% else %}border-gray-200 bg-gray-50{% endif %}">
-      <span class="text-xs font-semibold {% if rodada.pk == neg_atual.pk %}text-brand{% else %}text-gray-600{% endif %}">Rodada #{{ rodada.numero }}</span>
-      <span class="px-1.5 py-0.5 rounded text-xs font-medium
-        {% if rodada.status == 'ativa' %}bg-green-100 text-green-700
-        {% elif rodada.status == 'aprovada' %}bg-blue-100 text-blue-700
-        {% else %}bg-gray-100 text-gray-500{% endif %}">
-        {{ rodada.get_status_display }}
-      </span>
-      <span class="text-xs text-gray-500">{{ rodada.valor_proposto|brl_moeda }}</span>
-      {% if rodada.status == 'ativa' and neg.status == 'ativa' %}
-      <form method="post" action="{% url 'negociacoes:negociacao_aprovar_rodada' neg.pk rodada.pk %}">
-        {% csrf_token %}
-        <button type="submit" class="text-xs text-blue-600 hover:underline font-medium">Aprovar</button>
-      </form>
-      {% endif %}
-    </div>
-    {% endfor %}
-  </div>
-</div>
-{% endif %}
-
-<!-- Valores da Tabela de Vendas -->
+<!-- Valores da Tabela de Vendas (referência fixa, igual para todas as rodadas) -->
 {% if tabela_series_resumo %}
 <div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
   <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">
@@ -345,12 +305,51 @@
 </div>
 {% endif %}
 
+<!-- Propostas (podem ser múltiplas, cada uma com seus valores) -->
+{% if todas_propostas or neg.status == 'ativa' %}
+<div class="bg-white border border-gray-200 rounded-xl p-5 mb-6">
+  <div class="flex items-center justify-between mb-3">
+    <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">Propostas</h2>
+    {% if neg.status == 'ativa' %}
+    <form method="post" action="{% url 'negociacoes:negociacao_nova_rodada' neg.pk %}">
+      {% csrf_token %}
+      <button type="submit"
+              class="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 bg-brand hover:bg-brand-dark text-white rounded-lg transition">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        Nova proposta
+      </button>
+    </form>
+    {% endif %}
+  </div>
+  <div class="flex flex-wrap gap-2">
+    {% for proposta in todas_propostas %}
+    <div class="flex items-center gap-2 px-3 py-2 rounded-lg border {% if neg_atual and proposta.pk == neg_atual.pk %}border-brand bg-brand/5{% else %}border-gray-200 bg-gray-50{% endif %}">
+      <span class="text-xs font-semibold {% if neg_atual and proposta.pk == neg_atual.pk %}text-brand{% else %}text-gray-600{% endif %}">Proposta #{{ proposta.numero }}</span>
+      <span class="px-1.5 py-0.5 rounded text-xs font-medium
+        {% if proposta.status == 'ativa' %}bg-green-100 text-green-700
+        {% elif proposta.status == 'aprovada' %}bg-blue-100 text-blue-700
+        {% else %}bg-gray-100 text-gray-500{% endif %}">
+        {{ proposta.get_status_display }}
+      </span>
+      <span class="text-xs text-gray-500">{{ proposta.valor_proposto|brl_moeda }}</span>
+      {% if proposta.status == 'ativa' and neg.status == 'ativa' %}
+      <form method="post" action="{% url 'negociacoes:negociacao_aprovar_rodada' neg.pk proposta.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="text-xs text-blue-600 hover:underline font-medium">Aprovar</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
 <!-- Séries da proposta -->
 <div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
   <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
     <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">
       Valores Propostos
-      {% if neg_atual %}<span class="ml-2 text-xs font-normal text-gray-400">Rodada #{{ neg_atual.numero }}</span>{% endif %}
+      {% if neg_atual %}<span class="ml-2 text-xs font-normal text-gray-400">Proposta #{{ neg_atual.numero }}</span>{% endif %}
     </h2>
     <div class="flex items-center gap-3">
       {% if neg.tabela_id and neg.status == 'ativa' %}

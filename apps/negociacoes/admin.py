@@ -1,14 +1,13 @@
 from django.contrib import admin
-from .models import (EtapaWorkflow, TransicaoWorkflow, Proposta, PropostaUnidade,
-                     ParteProposta, Negociacao, SerieNegociacao, HistoricoProposta,
-                     TipoParteNegociacao)
+from .models import (EtapaWorkflow, TransicaoWorkflow,
+                     Reserva, ReservaUnidade, ParteReserva, HistoricoReserva,
+                     Proposta, SerieProposta, TipoParteNegociacao)
 
 admin.site.register(EtapaWorkflow)
 admin.site.register(TransicaoWorkflow)
+admin.site.register(Reserva)
+admin.site.register(ReservaUnidade)
+admin.site.register(ParteReserva)
 admin.site.register(Proposta)
-admin.site.register(PropostaUnidade)
-admin.site.register(ParteProposta)
-admin.site.register(Negociacao)
-admin.site.register(SerieNegociacao)
-admin.site.register(HistoricoProposta)
+admin.site.register(SerieProposta)
 admin.site.register(TipoParteNegociacao)

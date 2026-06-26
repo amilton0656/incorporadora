@@ -14,10 +14,16 @@ from apps.core.models import Empresa
 from apps.empreendimentos.models import Empreendimento, Unidade
 from apps.pessoas.models import Pessoa, TipoPapel
 from apps.vendas.models import TabelaVendasItem
-from .models import (EtapaWorkflow, HistoricoProposta,
-                     Negociacao, ParteProposta,
-                     Proposta, PropostaUnidade, SerieNegociacao,
+from .models import (EtapaWorkflow, HistoricoReserva,
+                     Proposta, ParteReserva,
+                     Reserva, ReservaUnidade, SerieProposta,
                      TipoParteNegociacao, TransicaoWorkflow)
+# Aliases de compatibilidade durante transição
+HistoricoProposta = HistoricoReserva
+ParteProposta = ParteReserva
+PropostaUnidade = ReservaUnidade
+SerieNegociacao = SerieProposta
+Negociacao = Proposta
 
 _INPUT = ('w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm '
           'focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition')
@@ -172,14 +178,14 @@ class EspelhoView(LoginRequiredMixin, View):
         em_processo_ids = set(
             PropostaUnidade.objects.filter(
                 proposta__empreendimento=empreendimento,
-                proposta__status=Proposta.STATUS_ATIVA,
+                proposta__status=Reserva.STATUS_ATIVA,
             ).values_list('unidade_id', flat=True)
         )
         neg_por_unidade = {
             nu.unidade_id: nu.proposta
             for nu in PropostaUnidade.objects.filter(
                 proposta__empreendimento=empreendimento,
-                proposta__status=Proposta.STATUS_ATIVA,
+                proposta__status=Reserva.STATUS_ATIVA,
             ).select_related('proposta')
         }
 
@@ -344,8 +350,8 @@ class NegociacaoKanbanView(LoginRequiredMixin, View):
         emp_id = request.GET.get('empreendimento', '')
         q      = request.GET.get('q', '').strip()
 
-        qs = Proposta.objects.filter(
-            empresa=empresa, status=Proposta.STATUS_ATIVA
+        qs = Reserva.objects.filter(
+            empresa=empresa, status=Reserva.STATUS_ATIVA
         ).select_related('empreendimento', 'etapa').prefetch_related(
             'partes__pessoa',
             'unidades__unidade__bloco',
@@ -405,7 +411,7 @@ class NegociacaoForm(django_forms.ModelForm):
     )
 
     class Meta:
-        model = Proposta
+        model = Reserva
         fields = ['empreendimento', 'observacoes']
         widgets = {'observacoes': django_forms.Textarea(attrs={'rows': 3})}
 
@@ -535,7 +541,7 @@ class NegociacaoCreateView(LoginRequiredMixin, View):
                     )
 
         # Cria rodada #1 e copia series da tabela como series propostas iniciais
-        neg_atual = Negociacao.objects.create(proposta=neg, numero=1, status='ativa')
+        neg_atual = Proposta.objects.create(reserva=neg, numero=1, status='ativa')
 
         if neg.tabela_id:
             from apps.vendas.models import TabelaSerie, TabelaVendasItem as TVI2
@@ -558,7 +564,7 @@ class NegociacaoCreateView(LoginRequiredMixin, View):
                         valor_parcela += serie.calcular_valor_parcela(nu.unidade.valor_tabela or Decimal('0'))
 
                 SerieNegociacao.objects.create(
-                    negociacao=neg_atual,
+                    proposta=neg_atual,
                     tipo=serie.tipo,
                     quantidade=serie.quantidade,
                     valor_por_parcela=valor_parcela,
@@ -572,12 +578,12 @@ class NegociacaoCreateView(LoginRequiredMixin, View):
 
 
 class NegociacaoDetailView(LoginRequiredMixin, DetailView):
-    model = Proposta
+    model = Reserva
     template_name = 'negociacoes/proposta_detail.html'
     context_object_name = 'neg'
 
     def get_object(self):
-        return get_object_or_404(Proposta.all_objects, pk=self.kwargs['pk'])
+        return get_object_or_404(Reserva.all_objects, pk=self.kwargs['pk'])
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -594,13 +600,13 @@ class NegociacaoDetailView(LoginRequiredMixin, DetailView):
             'unidade__complementares__designacoes',
         ).all()
         # Rodada ativa (Negociacao) dentro desta Proposta
-        neg_atual = neg.negociacao_ativa
+        neg_atual = neg.proposta_ativa
         ctx['neg_atual']    = neg_atual
-        ctx['todas_rodadas'] = neg.negociacoes.order_by('numero')
+        ctx['todas_propostas'] = neg.propostas.order_by('numero')
         series = list(neg_atual.series.all()) if neg_atual else []
         ctx['series']    = series
         ctx['historico'] = neg.historico.select_related('etapa_anterior', 'etapa_nova', 'usuario').all()
-        ctx['destinos']  = neg.etapa.destinos if neg.status == Proposta.STATUS_ATIVA else []
+        ctx['destinos']  = neg.etapa.destinos if neg.status == Reserva.STATUS_ATIVA else []
 
         # Calendario de parcelas
         ctx['calendario'] = _gerar_calendario(series)
@@ -608,8 +614,7 @@ class NegociacaoDetailView(LoginRequiredMixin, DetailView):
         # Resumo Tabela Ã— Proposto Ã— DiferenÃ§a
         ctx['resumo'] = _gerar_resumo(neg, neg_atual, series)
 
-        # SÃ©ries da tabela: usa neg.tabela (global) e soma por unidade
-        from .models import NegociacaoUnidade
+        # Series da tabela: usa neg.tabela (global) e soma por unidade
         from apps.vendas.models import TabelaVendasItem as TVI
         tabela_por_tipo = {}
         tabela_label    = {}
@@ -685,18 +690,18 @@ class NegociacaoDetailView(LoginRequiredMixin, DetailView):
 
 class NegociacaoDeleteView(LoginRequiredMixin, View):
     def get(self, request, pk):
-        neg = get_object_or_404(Proposta.objects, pk=pk)
+        neg = get_object_or_404(Reserva.objects, pk=pk)
         return render(request, 'negociacoes/proposta_confirm_delete.html', {'neg': neg})
 
     def post(self, request, pk):
-        neg = get_object_or_404(Proposta.objects, pk=pk)
+        neg = get_object_or_404(Reserva.objects, pk=pk)
         neg.soft_delete(user=request.user)
         messages.success(request, f'Proposta #{neg.numero} excluÃ­da.')
         return redirect('negociacoes:kanban')
 
 
 class NegociacaoUpdateView(LoginRequiredMixin, UpdateView):
-    model = Proposta
+    model = Reserva
     form_class = NegociacaoForm
     template_name = 'negociacoes/proposta_form.html'
 
@@ -717,7 +722,7 @@ class NegociacaoUpdateView(LoginRequiredMixin, UpdateView):
 
 @login_required
 def avancar_etapa(request, pk):
-    neg = get_object_or_404(Proposta.objects, pk=pk)
+    neg = get_object_or_404(Reserva.objects, pk=pk)
     if request.method != 'POST':
         return redirect('negociacoes:negociacao_detail', pk=pk)
 
@@ -766,7 +771,7 @@ def negociacao_change_tabela(request, pk):
     if request.method != 'POST':
         return redirect('negociacoes:negociacao_detail', pk=pk)
     from apps.vendas.models import TabelaVendas as TV
-    neg      = get_object_or_404(Proposta.objects, pk=pk)
+    neg      = get_object_or_404(Reserva.objects, pk=pk)
     tabela_id = request.POST.get('tabela_id') or None
     tabela_obj = TV.objects.filter(pk=tabela_id, empreendimento=neg.empreendimento).first() if tabela_id else None
     neg.tabela = tabela_obj
@@ -777,30 +782,26 @@ def negociacao_change_tabela(request, pk):
 
 @login_required
 def negociacao_nova_rodada(request, pk):
-    """Cria uma nova rodada de negociação, copiando as séries da rodada anterior."""
+    """Cria nova Proposta para a Reserva, copiando series da proposta anterior."""
     if request.method != 'POST':
         return redirect('negociacoes:negociacao_detail', pk=pk)
 
-    neg = get_object_or_404(Proposta.objects, pk=pk)
-    ultima = neg.negociacoes.order_by('-numero').first()
+    neg = get_object_or_404(Reserva.objects, pk=pk)
+    ultima = neg.propostas.order_by('-numero').first()
 
-    # Inativa a rodada anterior
-    if ultima and ultima.status == Negociacao.STATUS_ATIVA:
-        ultima.status = Negociacao.STATUS_RECUSADA
-        ultima.save(update_fields=['status'])
-
+    # Propostas podem coexistir ativas — nao inativa a anterior automaticamente
     novo_numero = (ultima.numero + 1) if ultima else 1
-    nova = Negociacao.objects.create(
-        proposta=neg,
+    nova = Proposta.objects.create(
+        reserva=neg,
         numero=novo_numero,
-        status=Negociacao.STATUS_ATIVA,
+        status=Proposta.STATUS_ATIVA,
     )
 
-    # Copia as séries da rodada anterior
+    # Copia as series da proposta anterior
     if ultima:
         for s in ultima.series.all():
-            SerieNegociacao.objects.create(
-                negociacao=nova,
+            SerieProposta.objects.create(
+                proposta=nova,
                 tipo=s.tipo,
                 descricao=s.descricao,
                 quantidade=s.quantidade,
@@ -810,20 +811,20 @@ def negociacao_nova_rodada(request, pk):
                 serie_ref=s.serie_ref,
             )
 
-    messages.success(request, f'Rodada #{nova.numero} criada. Edite os valores propostos.')
+    messages.success(request, f'Proposta #{nova.numero} criada.')
     return redirect('negociacoes:negociacao_detail', pk=pk)
 
 
 @login_required
 def negociacao_aprovar_rodada(request, pk, rodada_pk):
-    """Aprova a rodada especificada."""
+    """Aprova a Proposta especificada."""
     if request.method != 'POST':
         return redirect('negociacoes:negociacao_detail', pk=pk)
-    neg = get_object_or_404(Proposta.objects, pk=pk)
-    rodada = get_object_or_404(Negociacao, pk=rodada_pk, proposta=neg)
-    rodada.status = Negociacao.STATUS_APROVADA
-    rodada.save(update_fields=['status'])
-    messages.success(request, f'Rodada #{rodada.numero} aprovada.')
+    neg = get_object_or_404(Reserva.objects, pk=pk)
+    proposta = get_object_or_404(Proposta, pk=rodada_pk, reserva=neg)
+    proposta.status = Proposta.STATUS_APROVADA
+    proposta.save(update_fields=['status'])
+    messages.success(request, f'Proposta #{proposta.numero} aprovada.')
     return redirect('negociacoes:negociacao_detail', pk=pk)
 
 
@@ -833,7 +834,7 @@ def negociacao_reset_series(request, pk):
     if request.method != 'POST':
         return redirect('negociacoes:negociacao_detail', pk=pk)
 
-    neg = get_object_or_404(Proposta.objects, pk=pk)
+    neg = get_object_or_404(Reserva.objects, pk=pk)
 
     if not neg.tabela_id:
         messages.error(request, 'Nenhuma tabela de vendas vinculada a esta proposta.')
@@ -842,12 +843,12 @@ def negociacao_reset_series(request, pk):
     from apps.vendas.models import TabelaSerie, TabelaVendasItem as TVI3
 
     # Garante rodada ativa; cria se nao existir
-    neg_atual = neg.negociacao_ativa
+    neg_atual = neg.proposta_ativa
     if not neg_atual:
-        neg_atual = Negociacao.objects.create(proposta=neg, numero=1, status='ativa')
+        neg_atual = Proposta.objects.create(reserva=neg, numero=1, status='ativa')
 
     # Apaga as series propostas existentes da rodada
-    neg_atual.series.all().delete()
+    neg_atual.series.all().delete()  # series da proposta
 
     unidade_ids = list(neg.unidades.values_list('unidade_id', flat=True))
     series_tabela = TabelaSerie.objects.filter(tabela_id=neg.tabela_id).order_by('tipo')
@@ -885,7 +886,7 @@ def negociacao_reset_series(request, pk):
 
 @login_required
 def negociacao_unidade_add(request, pk):
-    neg = get_object_or_404(Proposta.objects, pk=pk)
+    neg = get_object_or_404(Reserva.objects, pk=pk)
     if request.method == 'POST':
         unidade_id = request.POST.get('unidade_id')
         unidade = get_object_or_404(Unidade.objects, pk=unidade_id)
@@ -904,7 +905,7 @@ def negociacao_unidade_add(request, pk):
 @login_required
 def negociacao_unidade_remove(request, pk, nu_pk):
     from .models import NegociacaoUnidade
-    neg = get_object_or_404(Proposta.objects, pk=pk)
+    neg = get_object_or_404(Reserva.objects, pk=pk)
     if request.method == 'POST':
         PropostaUnidade.objects.filter(pk=nu_pk, proposta=neg).delete()
         messages.success(request, 'Unidade removida.')
@@ -922,7 +923,7 @@ def _get_tipo_parte(empresa, slug):
 
 @login_required
 def parte_add(request, pk):
-    neg = get_object_or_404(Proposta.objects, pk=pk)
+    neg = get_object_or_404(Reserva.objects, pk=pk)
     if request.method == 'POST':
         pessoa_id = request.POST.get('pessoa_id')
         tipo_id   = request.POST.get('tipo')
@@ -937,7 +938,7 @@ def parte_add(request, pk):
 
 @login_required
 def parte_remove(request, pk, parte_pk):
-    neg   = get_object_or_404(Proposta.objects, pk=pk)
+    neg   = get_object_or_404(Reserva.objects, pk=pk)
     parte = get_object_or_404(ParteProposta, pk=parte_pk, proposta=neg)
     if request.method == 'POST':
         parte.delete()
@@ -957,11 +958,11 @@ def _parse_decimal(raw):
 
 @login_required
 def serie_add(request, pk):
-    neg = get_object_or_404(Proposta.objects, pk=pk)
+    neg = get_object_or_404(Reserva.objects, pk=pk)
     if request.method == 'POST':
-        neg_atual = neg.negociacao_ativa
+        neg_atual = neg.proposta_ativa
         if not neg_atual:
-            neg_atual = Negociacao.objects.create(proposta=neg, numero=1, status='ativa')
+            neg_atual = Proposta.objects.create(reserva=neg, numero=1, status='ativa')
         SerieNegociacao.objects.create(
             negociacao=neg_atual,
             tipo=request.POST.get('tipo', 'outro'),
@@ -977,9 +978,9 @@ def serie_add(request, pk):
 
 @login_required
 def serie_update(request, pk, serie_pk):
-    neg   = get_object_or_404(Proposta.objects, pk=pk)
-    neg_atual = neg.negociacao_ativa
-    serie = get_object_or_404(SerieNegociacao, pk=serie_pk, negociacao=neg_atual) if neg_atual else None
+    neg   = get_object_or_404(Reserva.objects, pk=pk)
+    neg_atual = neg.proposta_ativa
+    serie = get_object_or_404(SerieProposta, pk=serie_pk, proposta=neg_atual) if neg_atual else None
     if not serie:
         messages.error(request, 'Serie nao encontrada.')
         return redirect('negociacoes:negociacao_detail', pk=pk)
@@ -1010,9 +1011,9 @@ def serie_update(request, pk, serie_pk):
 
 @login_required
 def serie_remove(request, pk, serie_pk):
-    neg   = get_object_or_404(Proposta.objects, pk=pk)
-    neg_atual = neg.negociacao_ativa
-    serie = get_object_or_404(SerieNegociacao, pk=serie_pk, negociacao=neg_atual) if neg_atual else None
+    neg   = get_object_or_404(Reserva.objects, pk=pk)
+    neg_atual = neg.proposta_ativa
+    serie = get_object_or_404(SerieProposta, pk=serie_pk, proposta=neg_atual) if neg_atual else None
     if request.method == 'POST' and serie:
         serie.delete()
         messages.success(request, 'Serie removida.')
