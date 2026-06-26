@@ -14,8 +14,8 @@ from apps.core.models import Empresa
 from apps.empreendimentos.models import Empreendimento, Unidade
 from apps.pessoas.models import Pessoa, TipoPapel
 from apps.vendas.models import TabelaVendasItem
-from .models import (EtapaWorkflow, HistoricoNegociacao, HistoricoProposta,
-                     Negociacao, NegociacaoUnidade, ParteNegociacao, ParteProposta,
+from .models import (EtapaWorkflow, HistoricoProposta,
+                     Negociacao, ParteProposta,
                      Proposta, PropostaUnidade, SerieNegociacao,
                      TipoParteNegociacao, TransicaoWorkflow)
 
@@ -429,7 +429,7 @@ class NegociacaoForm(django_forms.ModelForm):
 
 
 class NegociacaoCreateView(LoginRequiredMixin, View):
-    template_name = 'negociacoes/negociacao_form.html'
+    template_name = 'negociacoes/proposta_form.html'
 
     def _ctx(self, empresa):
         from apps.vendas.models import TabelaVendas as TV
@@ -573,7 +573,7 @@ class NegociacaoCreateView(LoginRequiredMixin, View):
 
 class NegociacaoDetailView(LoginRequiredMixin, DetailView):
     model = Proposta
-    template_name = 'negociacoes/negociacao_detail.html'
+    template_name = 'negociacoes/proposta_detail.html'
     context_object_name = 'neg'
 
     def get_object(self):
@@ -595,7 +595,8 @@ class NegociacaoDetailView(LoginRequiredMixin, DetailView):
         ).all()
         # Rodada ativa (Negociacao) dentro desta Proposta
         neg_atual = neg.negociacao_ativa
-        ctx['neg_atual']  = neg_atual
+        ctx['neg_atual']    = neg_atual
+        ctx['todas_rodadas'] = neg.negociacoes.order_by('numero')
         series = list(neg_atual.series.all()) if neg_atual else []
         ctx['series']    = series
         ctx['historico'] = neg.historico.select_related('etapa_anterior', 'etapa_nova', 'usuario').all()
@@ -685,7 +686,7 @@ class NegociacaoDetailView(LoginRequiredMixin, DetailView):
 class NegociacaoDeleteView(LoginRequiredMixin, View):
     def get(self, request, pk):
         neg = get_object_or_404(Proposta.objects, pk=pk)
-        return render(request, 'negociacoes/negociacao_confirm_delete.html', {'neg': neg})
+        return render(request, 'negociacoes/proposta_confirm_delete.html', {'neg': neg})
 
     def post(self, request, pk):
         neg = get_object_or_404(Proposta.objects, pk=pk)
@@ -697,7 +698,7 @@ class NegociacaoDeleteView(LoginRequiredMixin, View):
 class NegociacaoUpdateView(LoginRequiredMixin, UpdateView):
     model = Proposta
     form_class = NegociacaoForm
-    template_name = 'negociacoes/negociacao_form.html'
+    template_name = 'negociacoes/proposta_form.html'
 
     def get_form(self, form_class=None):
         empresa = _get_empresa(self.request)
@@ -771,6 +772,58 @@ def negociacao_change_tabela(request, pk):
     neg.tabela = tabela_obj
     neg.save(update_fields=['tabela'])
     messages.success(request, f'Tabela de vendas {"atualizada para " + tabela_obj.nome if tabela_obj else "removida"}.')
+    return redirect('negociacoes:negociacao_detail', pk=pk)
+
+
+@login_required
+def negociacao_nova_rodada(request, pk):
+    """Cria uma nova rodada de negociação, copiando as séries da rodada anterior."""
+    if request.method != 'POST':
+        return redirect('negociacoes:negociacao_detail', pk=pk)
+
+    neg = get_object_or_404(Proposta.objects, pk=pk)
+    ultima = neg.negociacoes.order_by('-numero').first()
+
+    # Inativa a rodada anterior
+    if ultima and ultima.status == Negociacao.STATUS_ATIVA:
+        ultima.status = Negociacao.STATUS_RECUSADA
+        ultima.save(update_fields=['status'])
+
+    novo_numero = (ultima.numero + 1) if ultima else 1
+    nova = Negociacao.objects.create(
+        proposta=neg,
+        numero=novo_numero,
+        status=Negociacao.STATUS_ATIVA,
+    )
+
+    # Copia as séries da rodada anterior
+    if ultima:
+        for s in ultima.series.all():
+            SerieNegociacao.objects.create(
+                negociacao=nova,
+                tipo=s.tipo,
+                descricao=s.descricao,
+                quantidade=s.quantidade,
+                valor_por_parcela=s.valor_por_parcela,
+                data_primeiro_vencimento=s.data_primeiro_vencimento,
+                periodicidade=s.periodicidade,
+                serie_ref=s.serie_ref,
+            )
+
+    messages.success(request, f'Rodada #{nova.numero} criada. Edite os valores propostos.')
+    return redirect('negociacoes:negociacao_detail', pk=pk)
+
+
+@login_required
+def negociacao_aprovar_rodada(request, pk, rodada_pk):
+    """Aprova a rodada especificada."""
+    if request.method != 'POST':
+        return redirect('negociacoes:negociacao_detail', pk=pk)
+    neg = get_object_or_404(Proposta.objects, pk=pk)
+    rodada = get_object_or_404(Negociacao, pk=rodada_pk, proposta=neg)
+    rodada.status = Negociacao.STATUS_APROVADA
+    rodada.save(update_fields=['status'])
+    messages.success(request, f'Rodada #{rodada.numero} aprovada.')
     return redirect('negociacoes:negociacao_detail', pk=pk)
 
 

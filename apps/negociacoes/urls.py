@@ -19,6 +19,8 @@ urlpatterns = [
     path('negociacoes/api/conjuge/<int:pessoa_pk>/', views.api_conjuge_sugerido, name='api_conjuge_sugerido'),
     # Unidades
     path('negociacoes/<int:pk>/change-tabela/', views.negociacao_change_tabela, name='negociacao_change_tabela'),
+    path('negociacoes/<int:pk>/nova-rodada/', views.negociacao_nova_rodada, name='negociacao_nova_rodada'),
+    path('negociacoes/<int:pk>/rodadas/<int:rodada_pk>/aprovar/', views.negociacao_aprovar_rodada, name='negociacao_aprovar_rodada'),
     path('negociacoes/<int:pk>/reset-series/', views.negociacao_reset_series, name='negociacao_reset_series'),
     path('negociacoes/<int:pk>/unidades/adicionar/', views.negociacao_unidade_add, name='negociacao_unidade_add'),
     path('negociacoes/<int:pk>/unidades/<int:nu_pk>/remover/', views.negociacao_unidade_remove, name='negociacao_unidade_remove'),

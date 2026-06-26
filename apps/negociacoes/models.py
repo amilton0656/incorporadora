@@ -302,9 +302,3 @@ class HistoricoProposta(models.Model):
         return f'Proposta #{self.proposta.numero} → {self.etapa_nova}'
 
 
-# ─── Aliases de compatibilidade (removidos após reescrita de views/templates) ──
-NegociacaoUnidade   = PropostaUnidade
-ParteNegociacao     = ParteProposta
-HistoricoNegociacao = HistoricoProposta
-# Proposta_alias permite que views.py use Proposta via nome antigo durante transição
-Proposta_legacy     = Proposta
