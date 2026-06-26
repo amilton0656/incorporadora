@@ -71,6 +71,19 @@
 
 <!-- Identificação da proposta -->
 <div class="bg-white border border-gray-200 rounded-xl px-5 py-4 mb-6 flex flex-wrap items-center gap-x-8 gap-y-2">
+  {% if neg_atual %}
+  <div>
+    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">Negociação</p>
+    <p class="text-sm font-semibold text-brand">Rodada #{{ neg_atual.numero }}
+      <span class="ml-1 px-1.5 py-0.5 rounded text-xs font-normal
+        {% if neg_atual.status == 'ativa' %}bg-green-100 text-green-700
+        {% elif neg_atual.status == 'aprovada' %}bg-blue-100 text-blue-700
+        {% else %}bg-red-100 text-red-600{% endif %}">
+        {{ neg_atual.get_status_display }}
+      </span>
+    </p>
+  </div>
+  {% endif %}
   <div>
     <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">Empreendimento</p>
     <p class="text-sm font-semibold text-gray-800">{{ neg.empreendimento.nome }}</p>
@@ -97,10 +110,10 @@
     <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">Data</p>
     <p class="text-sm font-semibold text-gray-800">{{ neg.data_abertura|date:'d/m/Y' }}</p>
   </div>
-  {% if neg.desconto_percentual %}
+  {% if neg_atual and neg_atual.desconto_percentual %}
   <div>
     <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">Desconto</p>
-    <p class="text-sm font-semibold text-gray-800">{{ neg.desconto_percentual }}%</p>
+    <p class="text-sm font-semibold text-gray-800">{{ neg_atual.desconto_percentual }}%</p>
   </div>
   {% endif %}
   {% if neg.observacoes %}

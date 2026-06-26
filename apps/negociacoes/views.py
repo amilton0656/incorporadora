@@ -239,7 +239,7 @@ class EspelhoView(LoginRequiredMixin, View):
                 'unidade': u,
                 'cor': cor,
                 'label': label,
-                'disponivel': not em_proc and u.status and 'ponÃ­v' in u.status.nome,
+                'disponivel': not em_proc and u.status and 'ponív' in u.status.nome,
                 'negociacao': neg_por_unidade.get(u.pk),
                 'gar_str': gar_str,
                 'hb_str': hb_str,
@@ -401,7 +401,7 @@ class NegociacaoForm(django_forms.ModelForm):
     # Campos extras nÃ£o presentes no model
     primeira_unidade = django_forms.ModelChoiceField(
         queryset=None, required=False, label='Primeira unidade',
-        help_text='Unidade inicial da negociaÃ§Ã£o (apenas disponÃ­veis).',
+        help_text='Unidade inicial da negociaÃ§Ã£o (apenas disponíveis).',
     )
 
     class Meta:
@@ -417,7 +417,7 @@ class NegociacaoForm(django_forms.ModelForm):
             self.fields['primeira_unidade'].queryset = Unidade.objects.filter(
                 bloco__empreendimento__empresa=empresa,
                 unidade_principal__isnull=True,
-                status__nome__icontains='disponÃ­v',
+                status__nome__icontains='disponív',
             ).select_related('bloco__empreendimento')
             self.fields['tabela'].queryset = TabelaVendas.objects.filter(
                 empreendimento__empresa=empresa,
@@ -439,7 +439,7 @@ class NegociacaoCreateView(LoginRequiredMixin, View):
             'unidades': Unidade.objects.filter(
                 bloco__empreendimento__empresa=empresa,
                 unidade_principal__isnull=True,
-                status__nome__icontains='disponÃ­v',
+                status__nome__icontains='disponív',
             ).select_related('bloco__empreendimento', 'status').order_by(
                 'bloco__empreendimento__nome', 'bloco__ordem', 'ordem', 'numero'
             ) if empresa else [],
@@ -660,7 +660,7 @@ class NegociacaoDetailView(LoginRequiredMixin, DetailView):
         ]
         ctx['tabela_total'] = sum(tabela_por_tipo.values(), Decimal('0'))
 
-        # Pessoas disponÃ­veis para adicionar como parte
+        # Pessoas disponíveis para adicionar como parte
         empresa = _get_empresa(self.request)
         ctx['pessoas_disponiveis'] = Pessoa.objects.filter(empresa=empresa) if empresa else []
         from apps.vendas.models import TabelaVendas as TV
@@ -670,14 +670,15 @@ class NegociacaoDetailView(LoginRequiredMixin, DetailView):
         ctx['tipos_parte'] = TipoParteNegociacao.objects.filter(empresa=empresa) if empresa else []
         ctx['tipos_serie'] = SerieNegociacao.TIPO_CHOICES
         ctx['periodicidades'] = SerieNegociacao.PERIODICIDADE_CHOICES
-        # Unidades disponÃ­veis para adicionar (nÃ£o vinculadas ainda a esta negociaÃ§Ã£o)
+        # Unidades disponíveis para adicionar (nÃ£o vinculadas ainda a esta negociaÃ§Ã£o)
         from apps.vendas.models import TabelaVendas as TV
         unidades_na_neg = set(neg.unidades.values_list('unidade_id', flat=True))
         ctx['unidades_disponiveis'] = Unidade.objects.filter(
             bloco__empreendimento=neg.empreendimento,
             unidade_principal__isnull=True,
-            status__nome__icontains='disponÃ­v',
+            status__nome__icontains='disponív',
         ).exclude(pk__in=unidades_na_neg).select_related('bloco', 'status') if empresa else []
+
         return ctx
 
 
