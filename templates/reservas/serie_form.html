@@ -1,0 +1,101 @@
+{% extends 'base_intranet.html' %}
+{% load formatters %}
+{% block title %}Editar Série — {{ serie.get_tipo_display }}{% endblock %}
+
+{% block breadcrumb %}
+<nav class="text-sm text-gray-400 mb-6">
+  <a href="{% url 'reservas:kanban' %}" class="hover:text-brand transition">Negociações</a>
+  <span class="mx-2">/</span>
+  <a href="{% url 'reservas:negociacao_detail' neg.pk %}" class="hover:text-brand transition">#{{ neg.numero }}</a>
+  <span class="mx-2">/</span>
+  <span class="text-gray-700 font-medium">Editar série</span>
+</nav>
+{% endblock %}
+
+{% block inner_content %}
+<div class="max-w-lg">
+  <h1 class="text-xl font-semibold text-gray-800 mb-1">Editar série — {{ serie.get_tipo_display }}</h1>
+  <p class="text-sm text-gray-400 mb-6">Proposta #{{ neg.numero }} — {{ neg.empreendimento.nome }}</p>
+
+  <form method="post">
+    {% csrf_token %}
+    <div class="bg-white border border-gray-200 rounded-xl p-6 mb-6 space-y-4">
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+        <p class="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600">{{ serie.get_tipo_display }}</p>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+        <input type="text" name="descricao" value="{{ serie.descricao }}"
+               placeholder="Opcional"
+               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand transition">
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Qtd. parcelas</label>
+          <input type="number" name="quantidade" value="{{ serie.quantidade }}" min="1" id="qtd-input"
+                 class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand transition"
+                 onchange="togglePeriod()">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Valor por parcela</label>
+          <input type="text" name="valor_por_parcela"
+                 value="{{ serie.valor_por_parcela }}"
+                 placeholder="0.00"
+                 class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand transition">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Data 1º vencimento</label>
+          <input type="date" name="data_primeiro_vencimento"
+                 value="{{ serie.data_primeiro_vencimento|date:'Y-m-d' }}"
+                 class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand transition">
+        </div>
+        <div id="campo-period">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Periodicidade</label>
+          <select name="periodicidade"
+                  class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand transition">
+            <option value="">—</option>
+            {% for valor, label in periodicidades %}
+            <option value="{{ valor }}" {% if serie.periodicidade == valor %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="bg-gray-50 rounded-lg px-4 py-3 text-sm text-gray-600">
+        <span class="font-medium">Total calculado:</span>
+        <span class="text-brand font-bold ml-2" id="total-calc">{{ serie.valor_total|brl_moeda }}</span>
+      </div>
+
+    </div>
+
+    <div class="flex gap-3">
+      <button type="submit"
+              class="px-6 py-2.5 bg-brand hover:bg-brand-dark text-white rounded-lg text-sm font-semibold transition">
+        Salvar
+      </button>
+      <a href="{% url 'reservas:negociacao_detail' neg.pk %}"
+         class="px-6 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition">
+        Cancelar
+      </a>
+    </div>
+  </form>
+</div>
+
+{% load static %}
+<script src="{% static 'js/masks.js' %}"></script>
+<script>
+function togglePeriod() {
+  var qtd = parseInt(document.getElementById('qtd-input').value);
+  document.getElementById('campo-period').style.display = qtd === 1 ? 'none' : '';
+}
+togglePeriod();
+if (typeof initMasks === 'function') initMasks();
+</script>
+{% endblock %}

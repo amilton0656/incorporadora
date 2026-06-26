@@ -1,0 +1,204 @@
+{% extends 'base_intranet.html' %}
+{% load formatters %}
+{% block title %}Espelho — {{ empreendimento.nome }}{% endblock %}
+
+{% block breadcrumb %}
+<nav class="text-sm text-gray-400 mb-4">
+  <a href="{% url 'intranet:welcome' %}" class="hover:text-brand transition">Início</a>
+  <span class="mx-2">/</span>
+  <a href="{% url 'empreendimentos:empreendimento_detail' empreendimento.pk %}" class="hover:text-brand transition">{{ empreendimento.nome }}</a>
+  <span class="mx-2">/</span>
+  <span class="text-gray-700 font-medium">Espelho de Unidades</span>
+</nav>
+{% endblock %}
+
+{% block inner_content %}
+
+<!-- Cabeçalho -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+  <div>
+    <h1 class="text-2xl font-semibold text-gray-800">Espelho de Unidades</h1>
+    <p class="text-sm text-gray-400 mt-0.5">{{ empreendimento.nome }}</p>
+  </div>
+  <a href="{% url 'empreendimentos:empreendimento_detail' empreendimento.pk %}"
+     class="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-gray-700">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+    </svg>
+    Voltar
+  </a>
+</div>
+
+<!-- Painel de contadores -->
+<div class="bg-white border border-gray-200 rounded-xl p-5 mb-5">
+  <div class="flex flex-wrap items-center gap-6">
+    <div class="shrink-0">
+      <p class="text-xs text-gray-400 uppercase tracking-wide mb-0.5">Total de unidades</p>
+      <p class="text-3xl font-bold text-gray-800">{{ total }}</p>
+    </div>
+    <div class="flex flex-wrap gap-4">
+      {% for label, count in contadores.items %}
+      <div class="flex items-center gap-2">
+        <span class="text-sm text-gray-700">{{ label }}</span>
+        <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-600">{{ count }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+
+{% if modo == 'grade' %}
+<!-- ═══════════ MODO GRADE — um bloco por seção ═══════════ -->
+{% for bg in blocos_grade %}
+<div class="mb-8">
+
+  <!-- Título e totais do bloco -->
+  <div class="flex flex-wrap items-center gap-4 mb-3">
+    <h2 class="text-base font-semibold text-gray-700 flex items-center gap-2">
+      <span class="w-2 h-5 rounded bg-brand inline-block"></span>
+      {{ bg.bloco.nome }}
+      <span class="text-xs font-normal text-gray-400">{{ bg.total }} unidade{{ bg.total|pluralize }}</span>
+    </h2>
+    <div class="flex flex-wrap gap-3">
+      {% for label, count in bg.contadores.items %}
+      <span class="inline-flex items-center gap-1.5 text-xs text-gray-600">
+        <span class="w-2.5 h-2.5 rounded-sm inline-block"
+              style="background-color:
+                {% if 'ermuta/venda' in label or 'ermuta_venda' in label %}#4f46e5
+                {% elif 'ponív' in label or 'ponivel' in label %}#16a34a
+                {% elif 'endid' in label %}#ef4444
+                {% elif 'servad' in label %}#f97316
+                {% elif 'loquead' in label %}#7c3aed
+                {% elif 'ermuta' in label %}#0891b2
+                {% elif 'rocess' in label %}#3b82f6
+                {% elif 'encid' in label %}#6b7280
+                {% else %}#9ca3af{% endif %}
+              "></span>
+        <span class="font-medium">{{ count }}</span> {{ label }}
+      </span>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="overflow-x-auto pb-2">
+    <table class="border-separate border-spacing-1">
+      <thead>
+        <tr>
+          <th class="w-20"></th>
+          {% for col in bg.colunas_ord %}
+          <th class="text-center text-xs font-semibold text-gray-600 py-1.5 px-1 w-28 bg-gray-100 rounded-lg">
+            {{ col }}
+          </th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in bg.grade %}
+        <tr>
+          <td class="text-center bg-gray-100 rounded-lg px-2 py-1 w-20 align-middle">
+            <div class="text-xs font-semibold text-gray-700">
+              {{ descricao_linha_map|get_item:row.linha|default:row.linha }}
+            </div>
+          </td>
+          {% for cell in row.celulas %}
+          <td class="w-28">
+            {% if cell %}
+              {% if cell.disponivel %}
+              <a href="{% url 'reservas:negociacao_create' %}?unidade={{ cell.unidade.pk }}&empreendimento={{ empreendimento.pk }}"
+                 class="block w-full rounded-lg p-2 text-white text-center transition hover:opacity-90 hover:scale-105 cursor-pointer"
+                 style="background-color: {{ cell.cor }}"
+                 title="Clique para nova proposta">
+                <div class="text-xs font-bold leading-tight truncate">{{ cell.unidade.numero }}</div>
+                <div class="text-xs opacity-80">{{ cell.unidade.area_privativa|brl_area:2 }} m²</div>
+                <div class="text-xs opacity-75 truncate">{{ cell.gar_str|default:"&nbsp;" }}</div>
+                <div class="text-xs opacity-75 truncate">{{ cell.hb_str|default:"&nbsp;" }}</div>
+                <div class="text-xs opacity-70 truncate">{{ cell.label }}</div>
+              </a>
+              {% elif cell.negociacao %}
+              <a href="{% url 'reservas:negociacao_detail' cell.negociacao.pk %}"
+                 class="block w-full rounded-lg p-2 text-white text-center transition hover:opacity-90 cursor-pointer"
+                 style="background-color: {{ cell.cor }}"
+                 title="Ver negociação #{{ cell.negociacao.numero }}">
+                <div class="text-xs font-bold leading-tight truncate">{{ cell.unidade.numero }}</div>
+                <div class="text-xs opacity-80">{{ cell.unidade.area_privativa|brl_area:2 }} m²</div>
+                <div class="text-xs opacity-75 truncate">{{ cell.gar_str|default:"&nbsp;" }}</div>
+                <div class="text-xs opacity-75 truncate">{{ cell.hb_str|default:"&nbsp;" }}</div>
+                <div class="text-xs opacity-70 truncate">{{ cell.label }}</div>
+              </a>
+              {% else %}
+              <div class="w-full rounded-lg p-2 text-white text-center"
+                   style="background-color: {{ cell.cor }}">
+                <div class="text-xs font-bold leading-tight truncate">{{ cell.unidade.numero }}</div>
+                <div class="text-xs opacity-80">{{ cell.unidade.area_privativa|brl_area:2 }} m²</div>
+                <div class="text-xs opacity-75 truncate">{{ cell.gar_str|default:"&nbsp;" }}</div>
+                <div class="text-xs opacity-75 truncate">{{ cell.hb_str|default:"&nbsp;" }}</div>
+                <div class="text-xs opacity-70 truncate">{{ cell.label }}</div>
+              </div>
+              {% endif %}
+            {% else %}
+            <div class="w-full h-20 rounded-lg border border-dashed border-gray-200 bg-gray-50"></div>
+            {% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+{% endfor %}
+
+{% else %}
+<!-- ═══════════ MODO COLUNAS (fallback por bloco) ═══════════ -->
+{% if not blocos_data %}
+<div class="bg-amber-50 border border-amber-200 rounded-xl px-6 py-6 text-sm text-amber-700">
+  Nenhuma unidade encontrada. Preencha os campos <strong>Linha</strong> e <strong>Coluna</strong>
+  no cadastro de cada unidade para ativar o modo grade.
+</div>
+{% else %}
+<div class="overflow-x-auto pb-4">
+  <div class="flex gap-3 min-w-max">
+    {% for item in blocos_data %}
+    <div class="flex flex-col gap-1">
+      <div class="text-center text-xs font-semibold text-gray-500 uppercase tracking-wide py-1.5 px-2 bg-gray-100 rounded-lg">
+        {{ item.bloco.nome }}
+      </div>
+      {% for cell in item.unidades %}
+        {% if cell.disponivel %}
+        <a href="{% url 'reservas:negociacao_create' %}?unidade={{ cell.unidade.pk }}&empreendimento={{ empreendimento.pk }}"
+           class="block w-28 rounded-lg p-2 text-white text-center transition hover:opacity-90 hover:scale-105 cursor-pointer"
+           style="background-color: {{ cell.cor }}">
+          <div class="text-xs font-bold leading-tight">{{ cell.unidade.numero }}</div>
+          <div class="text-xs opacity-80 mt-0.5">{{ cell.unidade.area_privativa|brl_area:2 }} m²</div>
+          <div class="text-xs opacity-70 mt-0.5">{{ cell.label }}</div>
+        </a>
+        {% elif cell.negociacao %}
+        <a href="{% url 'reservas:negociacao_detail' cell.negociacao.pk %}"
+           class="block w-28 rounded-lg p-2 text-white text-center transition hover:opacity-90 cursor-pointer"
+           style="background-color: {{ cell.cor }}">
+          <div class="text-xs font-bold leading-tight">{{ cell.unidade.numero }}</div>
+          <div class="text-xs opacity-80 mt-0.5">{{ cell.unidade.area_privativa|brl_area:2 }} m²</div>
+          <div class="text-xs opacity-70 mt-0.5">{{ cell.label }}</div>
+        </a>
+        {% else %}
+        <div class="w-28 rounded-lg p-2 text-white text-center" style="background-color: {{ cell.cor }}">
+          <div class="text-xs font-bold leading-tight">{{ cell.unidade.numero }}</div>
+          <div class="text-xs opacity-80 mt-0.5">{{ cell.unidade.area_privativa|brl_area:2 }} m²</div>
+          <div class="text-xs opacity-70 mt-0.5">{{ cell.label }}</div>
+        </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+<p class="text-xs text-gray-400 mt-3">
+  Dica: preencha <strong>Linha</strong> e <strong>Coluna</strong> no cadastro de cada unidade
+  para ativar o posicionamento preciso no espelho.
+</p>
+{% endif %}
+{% endif %}
+
+{% endblock %}
