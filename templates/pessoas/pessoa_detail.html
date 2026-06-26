@@ -83,6 +83,18 @@
       {% include 'core/_detail_row.html' with label='RG' value=pessoa.rg %}
       {% include 'core/_detail_row.html' with label='Data de nascimento' value=pessoa.data_nascimento|date:'d/m/Y' %}
       {% include 'core/_detail_row.html' with label='Estado civil' value=pessoa.get_estado_civil_display %}
+      {% if pessoa.conjuge %}
+      <div class="grid grid-cols-3 gap-2 items-start">
+        <dt class="text-xs font-medium text-gray-400 uppercase tracking-wide pt-0.5">Cônjuge</dt>
+        <dd class="col-span-2">
+          <a href="{% url 'pessoas:pessoa_detail' pessoa.conjuge.pk %}"
+             class="text-sm font-medium text-brand hover:underline">{{ pessoa.conjuge.nome_exibicao }}</a>
+          {% if pessoa.conjuge.cpf %}
+          <span class="ml-2 text-xs text-gray-400">{{ pessoa.conjuge.cpf }}</span>
+          {% endif %}
+        </dd>
+      </div>
+      {% endif %}
       {% include 'core/_detail_row.html' with label='Profissão' value=pessoa.profissao %}
       {% include 'core/_detail_row.html' with label='Nacionalidade' value=pessoa.nacionalidade %}
     </dl>
@@ -105,15 +117,6 @@
       {% include 'core/_detail_row.html' with label='Telefone' value=pessoa.telefone %}
       {% include 'core/_detail_row.html' with label='Celular' value=pessoa.celular %}
     </dl>
-    {% if pessoa.conjuge %}
-    <div class="mt-4 border-t border-gray-100 pt-4 flex items-center justify-between">
-      <div>
-        <p class="text-xs text-gray-400 mb-0.5">Cônjuge</p>
-        <a href="{% url 'pessoas:pessoa_detail' pessoa.conjuge.pk %}"
-           class="text-sm font-medium text-brand hover:underline">{{ pessoa.conjuge.nome_exibicao }}</a>
-      </div>
-    </div>
-    {% endif %}
   </div>
 
   <!-- Endereço -->

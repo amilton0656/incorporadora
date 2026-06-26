@@ -8,7 +8,7 @@ from apps.empreendimentos.models import (
     Bloco, DesignacaoUnidade, Empreendimento, StatusUnidade, TipoUnidade, Unidade,
 )
 
-TIPOS_COMPLEMENTAR = {'Garagem', 'Hobby Box'}
+TIPOS_COMPLEMENTAR = {'Garagem', 'Hobby Box', 'Garagem Carro', 'Garagem Moto'}
 
 TIPO_DESIGNACAO = {
     'Garagem': DesignacaoUnidade.GARAGEM_CARRO,
@@ -119,14 +119,17 @@ class Command(BaseCommand):
 
                 categoria = (
                     TipoUnidade.COMPLEMENTAR
-                    if tipo_nome in TIPOS_COMPLEMENTAR
+                    if tipo_nome.strip().lower() in {t.lower() for t in TIPOS_COMPLEMENTAR}
                     else TipoUnidade.PRINCIPAL
                 )
-                tipo_obj, _ = TipoUnidade.objects.get_or_create(
+                tipo_obj, criado = TipoUnidade.objects.get_or_create(
                     empresa=empresa,
                     nome=tipo_nome,
                     defaults={'categoria': categoria},
                 )
+                if not criado and tipo_obj.categoria != categoria:
+                    tipo_obj.categoria = categoria
+                    tipo_obj.save(update_fields=['categoria'])
 
                 status_obj, _ = StatusUnidade.objects.get_or_create(
                     empresa=empresa,

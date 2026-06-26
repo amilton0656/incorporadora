@@ -16,6 +16,12 @@
       }
     }
   </script>
+  <style>
+    /* Tom Select — fundo sólido e z-index alto para não vazar elementos do DOM abaixo */
+    .ts-dropdown { background: #fff !important; z-index: 9999 !important; }
+    .ts-dropdown .option { background: #fff; }
+    .ts-dropdown .option:hover, .ts-dropdown .option.active { background: #EEF2FF; }
+  </style>
 </head>
 <body class="bg-gray-50 text-gray-800 min-h-screen">
   {% block content %}{% endblock %}

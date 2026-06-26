@@ -13,13 +13,15 @@ urlpatterns = [
     path('reservas/<int:pk>/', views.NegociacaoDetailView.as_view(), name='negociacao_detail'),
     path('reservas/<int:pk>/editar/', views.NegociacaoUpdateView.as_view(), name='negociacao_update'),
     path('reservas/<int:pk>/excluir/', views.NegociacaoDeleteView.as_view(), name='negociacao_delete'),
-    # Avanço de etapa
+    # Etapa
     path('reservas/<int:pk>/avancar/', views.avancar_etapa, name='avancar_etapa'),
+    path('reservas/<int:pk>/alterar-etapa/', views.alterar_etapa, name='alterar_etapa'),
     # API sugestões
     path('reservas/api/conjuge/<int:pessoa_pk>/', views.api_conjuge_sugerido, name='api_conjuge_sugerido'),
     # Unidades
     path('reservas/<int:pk>/change-tabela/', views.negociacao_change_tabela, name='negociacao_change_tabela'),
     path('reservas/<int:pk>/nova-proposta/', views.negociacao_nova_rodada, name='negociacao_nova_rodada'),
+    path('reservas/<int:pk>/proposta/<int:proposta_pk>/valores/', views.proposta_valores_partial, name='proposta_valores'),
     path('reservas/<int:pk>/propostas/<int:rodada_pk>/aprovar/', views.negociacao_aprovar_rodada, name='negociacao_aprovar_rodada'),
     path('reservas/<int:pk>/reset-series/', views.negociacao_reset_series, name='negociacao_reset_series'),
     path('reservas/<int:pk>/unidades/adicionar/', views.negociacao_unidade_add, name='negociacao_unidade_add'),

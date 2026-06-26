@@ -174,19 +174,19 @@ class EspelhoView(LoginRequiredMixin, View):
         from apps.empreendimentos.models import Empreendimento, Unidade
         empreendimento = get_object_or_404(Empreendimento.objects, pk=pk)
 
-        # NegociaÃ§Ãµes ativas para marcar "Em Processo"
+        # Reservas ativas para marcar "Em Processo"
         em_processo_ids = set(
             PropostaUnidade.objects.filter(
-                proposta__empreendimento=empreendimento,
-                proposta__status=Reserva.STATUS_ATIVA,
+                reserva__empreendimento=empreendimento,
+                reserva__status=Reserva.STATUS_ATIVA,
             ).values_list('unidade_id', flat=True)
         )
         neg_por_unidade = {
-            nu.unidade_id: nu.proposta
+            nu.unidade_id: nu.reserva
             for nu in PropostaUnidade.objects.filter(
-                proposta__empreendimento=empreendimento,
-                proposta__status=Reserva.STATUS_ATIVA,
-            ).select_related('proposta')
+                reserva__empreendimento=empreendimento,
+                reserva__status=Reserva.STATUS_ATIVA,
+            ).select_related('reserva')
         }
 
         # Busca todas as unidades principais com linha/coluna definidas
@@ -439,9 +439,16 @@ class NegociacaoCreateView(LoginRequiredMixin, View):
 
     def _ctx(self, empresa):
         from apps.vendas.models import TabelaVendas as TV
+        pessoas_qs = Pessoa.objects.filter(empresa=empresa).order_by('nome', 'razao_social') if empresa else Pessoa.objects.none()
         return {
             'empreendimentos': Empreendimento.objects.filter(empresa=empresa) if empresa else [],
-            'pessoas': Pessoa.objects.filter(empresa=empresa).order_by('nome', 'razao_social') if empresa else [],
+            'pessoas': pessoas_qs,
+            'imobiliarias': pessoas_qs.filter(
+                papeis__papel__nome__icontains='imobili'
+            ).distinct(),
+            'corretores': pessoas_qs.filter(
+                papeis__papel__nome__icontains='corretor'
+            ).distinct(),
             'unidades': Unidade.objects.filter(
                 bloco__empreendimento__empresa=empresa,
                 unidade_principal__isnull=True,
@@ -453,6 +460,9 @@ class NegociacaoCreateView(LoginRequiredMixin, View):
                 empreendimento__empresa=empresa, ativa=True
             ).select_related('empreendimento').order_by('empreendimento__nome', 'nome') if empresa else [],
             'tipos_parte': TipoParteNegociacao.objects.filter(empresa=empresa) if empresa else [],
+            'tipos_comprador': TipoParteNegociacao.objects.filter(empresa=empresa).exclude(
+                slug__in=['corretor', 'imobiliaria', 'imobiliaria_parceira']
+            ) if empresa else [],
             'tipos_serie': SerieNegociacao.TIPO_CHOICES,
             'periodicidades': SerieNegociacao.PERIODICIDADE_CHOICES,
         }
@@ -465,7 +475,6 @@ class NegociacaoCreateView(LoginRequiredMixin, View):
         return render(request, self.template_name, ctx)
 
     def post(self, request):
-        from .models import NegociacaoUnidade
         empresa = _get_empresa(request)
         etapa   = _get_etapa_inicial(empresa)
         if not etapa:
@@ -489,13 +498,12 @@ class NegociacaoCreateView(LoginRequiredMixin, View):
         tabela_id = request.POST.get('tabela_id') or None
         tabela_obj = TV.objects.filter(pk=tabela_id).first() if tabela_id else None
 
-        neg = Negociacao(
+        neg = Reserva(
             empresa=empresa,
             empreendimento=empreendimento,
             etapa=etapa,
             tabela=tabela_obj,
             data_abertura=data,
-            desconto_percentual=_parse_decimal(request.POST.get('desconto_percentual', '0')),
             observacoes=request.POST.get('observacoes', '').strip(),
         )
         neg.save()
@@ -513,16 +521,12 @@ class NegociacaoCreateView(LoginRequiredMixin, View):
                 ParteProposta.objects.create(reserva=neg, pessoa_id=pid, tipo=tipo_obj, ordem=ordem)
                 ordem += 1
 
-        # Compradores: arrays paralelos partes_tipo (pk) + partes_pessoa
-        for tipo_id, pid in zip(
-            request.POST.getlist('partes_tipo'),
-            request.POST.getlist('partes_pessoa'),
-        ):
-            if pid and tipo_id:
-                tipo_obj = TipoParteNegociacao.objects.filter(pk=tipo_id).first()
-                if tipo_obj:
-                    ParteProposta.objects.create(reserva=neg, pessoa_id=pid, tipo=tipo_obj, ordem=ordem)
-                    ordem += 1
+        # Compradores: lista simples de pessoas, tipo fixo = proponente
+        tipo_proponente = _get_tipo_parte(empresa, TipoParteNegociacao.SLUG_PROPONENTE)
+        for pid in request.POST.getlist('partes_pessoa'):
+            if pid:
+                ParteProposta.objects.create(reserva=neg, pessoa_id=pid, tipo=tipo_proponente, ordem=ordem)
+                ordem += 1
 
         # Tabela global da proposta
         tabela_id = request.POST.get('tabela_id') or None
@@ -588,9 +592,15 @@ class NegociacaoDetailView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         neg = self.object
+        _SLUGS_COMERCIAL = {'imobiliaria', 'corretor', 'imobiliaria_parceira'}
         ctx['partes'] = neg.partes.select_related('pessoa__conjuge', 'tipo').prefetch_related(
             'pessoa__representantes_legais__pessoa_fisica'
         ).all()
+        ctx['parte_imobiliaria'] = neg.partes.filter(tipo__slug='imobiliaria').select_related('pessoa').first()
+        ctx['parte_corretor']    = neg.partes.filter(tipo__slug='corretor').select_related('pessoa').first()
+        ctx['compradores'] = neg.partes.exclude(tipo__slug__in=_SLUGS_COMERCIAL).select_related(
+            'pessoa__conjuge', 'tipo'
+        ).prefetch_related('pessoa__representantes_legais__pessoa_fisica')
         ctx['neg_unidades'] = neg.unidades.select_related(
             'unidade__status', 'unidade__bloco',
             'tabela_item__tabela',
@@ -599,10 +609,15 @@ class NegociacaoDetailView(LoginRequiredMixin, DetailView):
             'unidade__complementares__tipo',
             'unidade__complementares__designacoes',
         ).all()
-        # Rodada ativa (Negociacao) dentro desta Proposta
-        neg_atual = neg.proposta_ativa
-        ctx['neg_atual']    = neg_atual
-        ctx['todas_propostas'] = neg.propostas.order_by('numero')
+        # Proposta selecionada: via ?proposta=pk ou a ativa mais recente
+        todas_propostas = neg.propostas.order_by('numero')
+        proposta_id = self.request.GET.get('proposta')
+        if proposta_id:
+            neg_atual = todas_propostas.filter(pk=proposta_id).first() or neg.proposta_ativa
+        else:
+            neg_atual = neg.proposta_ativa
+        ctx['neg_atual']       = neg_atual
+        ctx['todas_propostas'] = todas_propostas
         series = list(neg_atual.series.all()) if neg_atual else []
         ctx['series']    = series
         ctx['historico'] = neg.historico.select_related('etapa_anterior', 'etapa_nova', 'usuario').all()
@@ -676,6 +691,7 @@ class NegociacaoDetailView(LoginRequiredMixin, DetailView):
         ctx['tipos_parte'] = TipoParteNegociacao.objects.filter(empresa=empresa) if empresa else []
         ctx['tipos_serie'] = SerieNegociacao.TIPO_CHOICES
         ctx['periodicidades'] = SerieNegociacao.PERIODICIDADE_CHOICES
+        ctx['etapas'] = EtapaWorkflow.objects.filter(empresa=empresa).order_by('ordem') if empresa else []
         # Unidades disponíveis para adicionar (nÃ£o vinculadas ainda a esta negociaÃ§Ã£o)
         from apps.vendas.models import TabelaVendas as TV
         unidades_na_neg = set(neg.unidades.values_list('unidade_id', flat=True))
@@ -700,25 +716,138 @@ class NegociacaoDeleteView(LoginRequiredMixin, View):
         return redirect('reservas:kanban')
 
 
-class NegociacaoUpdateView(LoginRequiredMixin, UpdateView):
-    model = Reserva
-    form_class = NegociacaoForm
-    template_name = 'reservas/proposta_form.html'
+class NegociacaoUpdateView(LoginRequiredMixin, View):
+    template_name = 'reservas/reserva_edit.html'
 
-    def get_form(self, form_class=None):
-        empresa = _get_empresa(self.request)
-        form = NegociacaoForm(**self.get_form_kwargs(), empresa=empresa)
-        return _style_form(form)
+    def _ctx(self, neg, empresa):
+        from apps.vendas.models import TabelaVendas as TV
+        pessoas_qs = Pessoa.objects.filter(empresa=empresa).order_by('nome', 'razao_social') if empresa else Pessoa.objects.none()
+        return {
+            'neg': neg,
+            'empreendimentos': Empreendimento.objects.filter(empresa=empresa) if empresa else [],
+            'tabelas': TV.objects.filter(empreendimento__empresa=empresa, ativa=True).select_related('empreendimento').order_by('empreendimento__nome', 'nome') if empresa else [],
+            'imobiliarias': pessoas_qs.filter(papeis__papel__nome__icontains='imobili').distinct(),
+            'corretores':   pessoas_qs.filter(papeis__papel__nome__icontains='corretor').distinct(),
+            'parte_imobiliaria': neg.partes.filter(tipo__slug='imobiliaria').select_related('pessoa').first(),
+            'parte_corretor':    neg.partes.filter(tipo__slug='corretor').select_related('pessoa').first(),
+            'unidades': neg.unidades.select_related('unidade__bloco').all(),
+            'unidades_disponiveis': Unidade.objects.filter(
+                bloco__empreendimento=neg.empreendimento,
+                unidade_principal__isnull=True,
+                status__nome__icontains='disponív',
+            ).exclude(
+                pk__in=neg.unidades.values_list('unidade_id', flat=True)
+            ).select_related('bloco', 'status').order_by('bloco__ordem', 'ordem', 'numero') if empresa else [],
+        }
 
-    def form_valid(self, form):
-        messages.success(self.request, 'NegociaÃ§Ã£o atualizada.')
-        return super().form_valid(form)
+    def get(self, request, pk):
+        neg = get_object_or_404(Reserva.objects, pk=pk)
+        empresa = _get_empresa(request)
+        return render(request, self.template_name, self._ctx(neg, empresa))
 
-    def get_success_url(self):
-        return reverse_lazy('reservas:negociacao_detail', kwargs={'pk': self.object.pk})
+    def post(self, request, pk):
+        neg = get_object_or_404(Reserva.objects, pk=pk)
+        empresa = _get_empresa(request)
+        import datetime as _dt
+        from apps.vendas.models import TabelaVendas as TV
+
+        # Detecta mudança de empreendimento
+        emp_id = request.POST.get('empreendimento')
+        emp_mudou = emp_id and str(neg.empreendimento_id) != str(emp_id)
+        if emp_mudou:
+            novo_emp = get_object_or_404(Empreendimento.objects, pk=emp_id, empresa=empresa)
+            neg.empreendimento = novo_emp
+            neg.tabela = None
+            # Remove unidades e valores propostos
+            neg.unidades.all().delete()
+            for proposta in neg.propostas.all():
+                proposta.series.all().delete()
+            messages.warning(request, 'Empreendimento alterado — unidades, tabela e valores propostos foram zerados.')
+
+        # Tabela de vendas
+        tabela_id = request.POST.get('tabela_id') or None
+        if tabela_id and not emp_mudou:
+            tabela_obj = TV.objects.filter(pk=tabela_id, empreendimento=neg.empreendimento).first()
+            if tabela_obj:
+                neg.tabela = tabela_obj
+
+        # Data e observações
+        data_str = request.POST.get('data_abertura', '')
+        try:
+            neg.data_abertura = _dt.date.fromisoformat(data_str) if data_str else neg.data_abertura
+        except ValueError:
+            pass
+        neg.observacoes = request.POST.get('observacoes', '').strip()
+        neg.save()
+
+        # Imobiliária
+        imob_id = request.POST.get('imobiliaria_id')
+        parte_imob = neg.partes.filter(tipo__slug='imobiliaria').first()
+        if imob_id:
+            tipo_imob = _get_tipo_parte(empresa, TipoParteNegociacao.SLUG_IMOBILIARIA)
+            if parte_imob:
+                parte_imob.pessoa_id = imob_id
+                parte_imob.save(update_fields=['pessoa'])
+            else:
+                ParteReserva.objects.create(reserva=neg, pessoa_id=imob_id, tipo=tipo_imob, ordem=0)
+        elif parte_imob:
+            parte_imob.delete()
+
+        # Corretor
+        corretor_id = request.POST.get('corretor_id')
+        parte_cor = neg.partes.filter(tipo__slug='corretor').first()
+        if corretor_id:
+            tipo_cor = _get_tipo_parte(empresa, TipoParteNegociacao.SLUG_CORRETOR)
+            if parte_cor:
+                parte_cor.pessoa_id = corretor_id
+                parte_cor.save(update_fields=['pessoa'])
+            else:
+                ParteReserva.objects.create(reserva=neg, pessoa_id=corretor_id, tipo=tipo_cor, ordem=1)
+        elif parte_cor:
+            parte_cor.delete()
+
+        messages.success(request, f'Reserva #{neg.numero} atualizada.')
+        return redirect('reservas:negociacao_detail', pk=neg.pk)
 
 
-# â”€â”€â”€ AvanÃ§o de etapa â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+@login_required
+def proposta_valores_partial(request, pk, proposta_pk):
+    """Retorna só o bloco de séries + calendário de uma proposta (para HTMX)."""
+    neg = get_object_or_404(Reserva.objects, pk=pk)
+    neg_atual = get_object_or_404(Proposta, pk=proposta_pk, reserva=neg)
+    series = list(neg_atual.series.all())
+    return render(request, 'reservas/_proposta_valores.html', {
+        'neg': neg,
+        'neg_atual': neg_atual,
+        'series': series,
+        'resumo': _gerar_resumo(neg, neg_atual, series),
+        'calendario': _gerar_calendario(series),
+        'tipos_serie': SerieProposta.TIPO_CHOICES,
+        'periodicidades': SerieProposta.PERIODICIDADE_CHOICES,
+    })
+
+
+@login_required
+def alterar_etapa(request, pk):
+    from django.http import JsonResponse
+    neg = get_object_or_404(Reserva.objects, pk=pk)
+    if request.method == 'POST':
+        etapa_id = request.POST.get('etapa_id')
+        etapa = get_object_or_404(EtapaWorkflow, pk=etapa_id)
+        etapa_anterior = neg.etapa
+        neg.etapa = etapa
+        neg.save(update_fields=['etapa', 'atualizado_em'])
+        HistoricoProposta.objects.create(
+            reserva=neg, etapa_anterior=etapa_anterior,
+            etapa_nova=etapa, usuario=request.user,
+        )
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'ok': True, 'etapa': etapa.nome, 'cor': etapa.cor})
+        messages.success(request, f'Etapa alterada para “{etapa.nome}”.')
+    return redirect('reservas:negociacao_detail', pk=pk)
+
+
+# ─── Avanço de etapa ──────────────────────────────────────────────────────────
 
 @login_required
 def avancar_etapa(request, pk):
@@ -885,38 +1014,62 @@ def negociacao_reset_series(request, pk):
 
 
 @login_required
+def _zerar_series(neg):
+    """Zera todas as séries propostas de todas as propostas da reserva."""
+    for proposta in neg.propostas.all():
+        proposta.series.all().delete()
+
+
 def negociacao_unidade_add(request, pk):
     neg = get_object_or_404(Reserva.objects, pk=pk)
+    next_url = request.POST.get('next', 'detail')
     if request.method == 'POST':
         unidade_id = request.POST.get('unidade_id')
         unidade = get_object_or_404(Unidade.objects, pk=unidade_id)
-        # Usa a tabela global da negociaÃ§Ã£o para encontrar o item
         item = None
         if neg.tabela_id:
             item = TabelaVendasItem.objects.filter(tabela_id=neg.tabela_id, unidade=unidade).first()
-        PropostaUnidade.objects.get_or_create(
+        _, criado = PropostaUnidade.objects.get_or_create(
             reserva=neg, unidade=unidade,
             defaults={'tabela_item': item},
         )
-        messages.success(request, f'Unidade {unidade.numero} adicionada.')
+        if criado:
+            _zerar_series(neg)
+            messages.success(request, f'Unidade {unidade.numero} adicionada — valores propostos zerados.')
+        else:
+            messages.info(request, f'Unidade {unidade.numero} já estava vinculada.')
+    if next_url == 'edit':
+        return redirect('reservas:negociacao_update', pk=pk)
     return redirect('reservas:negociacao_detail', pk=pk)
 
 
 @login_required
 def negociacao_unidade_remove(request, pk, nu_pk):
     neg = get_object_or_404(Reserva.objects, pk=pk)
+    next_url = request.POST.get('next', 'detail')
     if request.method == 'POST':
-        PropostaUnidade.objects.filter(pk=nu_pk, reserva=neg).delete()
-        messages.success(request, 'Unidade removida.')
+        deleted, _ = PropostaUnidade.objects.filter(pk=nu_pk, reserva=neg).delete()
+        if deleted:
+            _zerar_series(neg)
+            messages.success(request, 'Unidade removida — valores propostos zerados.')
+    if next_url == 'edit':
+        return redirect('reservas:negociacao_update', pk=pk)
     return redirect('reservas:negociacao_detail', pk=pk)
 
 
 def _get_tipo_parte(empresa, slug):
-    """Busca TipoParteNegociacao por slug; cria se nÃ£o existir."""
-    obj, _ = TipoParteNegociacao.objects.get_or_create(
-        empresa=empresa, slug=slug,
-        defaults={'nome': slug.replace('_', ' ').title(), 'ordem': 99},
+    """Busca TipoParteNegociacao por slug; se não achar, busca por nome; cria se necessário."""
+    obj = TipoParteNegociacao.objects.filter(empresa=empresa, slug=slug).first()
+    if obj:
+        return obj
+    nome_default = slug.replace('_', ' ').title()
+    obj, created = TipoParteNegociacao.objects.get_or_create(
+        empresa=empresa, nome=nome_default,
+        defaults={'slug': slug, 'ordem': 99},
     )
+    if not created and not obj.slug:
+        obj.slug = slug
+        obj.save(update_fields=['slug'])
     return obj
 
 
@@ -926,9 +1079,14 @@ def parte_add(request, pk):
     if request.method == 'POST':
         pessoa_id = request.POST.get('pessoa_id')
         tipo_id   = request.POST.get('tipo')
+        empresa   = _get_empresa(request)
         if pessoa_id and tipo_id:
-            pessoa    = get_object_or_404(Pessoa.objects, pk=pessoa_id)
-            tipo_obj  = get_object_or_404(TipoParteNegociacao, pk=tipo_id)
+            pessoa = get_object_or_404(Pessoa.objects, pk=pessoa_id)
+            # aceita PK numérico ou slug
+            if tipo_id.isdigit():
+                tipo_obj = get_object_or_404(TipoParteNegociacao, pk=tipo_id)
+            else:
+                tipo_obj = _get_tipo_parte(empresa, tipo_id)
             ordem     = neg.partes.count()
             ParteProposta.objects.create(reserva=neg, pessoa=pessoa, tipo=tipo_obj, ordem=ordem)
             messages.success(request, f'{tipo_obj.nome} adicionado.')
@@ -977,18 +1135,19 @@ def serie_add(request, pk):
 
 @login_required
 def serie_update(request, pk, serie_pk):
-    neg   = get_object_or_404(Reserva.objects, pk=pk)
+    neg      = get_object_or_404(Reserva.objects, pk=pk)
     neg_atual = neg.proposta_ativa
-    serie = get_object_or_404(SerieProposta, pk=serie_pk, proposta=neg_atual) if neg_atual else None
+    serie    = get_object_or_404(SerieProposta, pk=serie_pk, proposta=neg_atual) if neg_atual else None
+    is_ajax  = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
     if not serie:
         messages.error(request, 'Serie nao encontrada.')
         return redirect('reservas:negociacao_detail', pk=pk)
 
     if request.method == 'POST':
-        serie.descricao           = request.POST.get('descricao', '').strip()
-        serie.quantidade          = int(request.POST.get('quantidade') or 1)
+        serie.descricao = request.POST.get('descricao', '').strip()
+        serie.quantidade = int(request.POST.get('quantidade') or 1)
         raw_valor = request.POST.get('valor_por_parcela', '0').strip()
-        # Aceita formato decimal puro (1234.56) ou BRL (1.234,56)
         if ',' in raw_valor:
             raw_valor = raw_valor.replace('.', '').replace(',', '.')
         try:
@@ -996,16 +1155,35 @@ def serie_update(request, pk, serie_pk):
         except Exception:
             serie.valor_por_parcela = Decimal('0')
         serie.data_primeiro_vencimento = request.POST.get('data_primeiro_vencimento') or None
-        serie.periodicidade       = request.POST.get('periodicidade', '') if serie.quantidade > 1 else ''
+        serie.periodicidade = request.POST.get('periodicidade', '') if serie.quantidade > 1 else ''
         serie.save()
-        messages.success(request, f'SÃ©rie "{serie.get_tipo_display()}" atualizada.')
+
+        if is_ajax:
+            # Devolve o bloco de valores atualizado para o fetch substituir #bloco-valores
+            series = list(neg_atual.series.all())
+            return render(request, 'reservas/_proposta_valores.html', {
+                'neg': neg,
+                'neg_atual': neg_atual,
+                'series': series,
+                'resumo': _gerar_resumo(neg, neg_atual, series),
+                'calendario': _gerar_calendario(series),
+                'tipos_serie': SerieProposta.TIPO_CHOICES,
+                'periodicidades': SerieProposta.PERIODICIDADE_CHOICES,
+            })
+        messages.success(request, f'Série "{serie.get_tipo_display()}" atualizada.')
         return redirect('reservas:negociacao_detail', pk=pk)
 
-    return render(request, 'reservas/serie_form.html', {
+    from django.urls import reverse
+    ctx = {
         'neg': neg,
         'serie': serie,
         'periodicidades': SerieNegociacao.PERIODICIDADE_CHOICES,
-    })
+        'url_salvar': reverse('reservas:serie_update', args=[pk, serie_pk]),
+        'url_proposta_valores': reverse('reservas:proposta_valores', args=[pk, neg_atual.pk]) if neg_atual else '',
+    }
+    if is_ajax:
+        return render(request, 'reservas/_serie_form.html', ctx)
+    return render(request, 'reservas/serie_form.html', ctx)
 
 
 @login_required

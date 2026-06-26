@@ -1,0 +1,69 @@
+{% load formatters %}
+<div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+      Editar série — {{ serie.get_tipo_display }}
+    </h2>
+    <button type="button" id="btn-cancelar-serie-topo"
+            class="text-xs text-gray-400 hover:text-gray-600 transition">✕ Cancelar</button>
+  </div>
+
+  <form id="form-serie"
+        data-url-salvar="{{ url_salvar }}"
+        data-url-valores="{{ url_proposta_valores }}">
+    {% csrf_token %}
+    <div class="space-y-4">
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1">Qtd. parcelas</label>
+          <input type="number" name="quantidade" value="{{ serie.quantidade }}" min="1" id="qtd-input"
+                 class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand transition"
+                 onchange="togglePeriod()">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1">Valor por parcela</label>
+          <input type="text" name="valor_por_parcela" value="{{ serie.valor_por_parcela }}"
+                 class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand transition">
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">Descrição</label>
+        <input type="text" name="descricao" value="{{ serie.descricao }}"
+               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand transition">
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1">Data 1º vencimento</label>
+          <input type="date" name="data_primeiro_vencimento"
+                 value="{{ serie.data_primeiro_vencimento|date:'Y-m-d' }}"
+                 class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand transition">
+        </div>
+        <div id="campo-period">
+          <label class="block text-xs font-medium text-gray-500 mb-1">Periodicidade</label>
+          <select name="periodicidade"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand transition">
+            <option value="">—</option>
+            {% for valor, label in periodicidades %}
+            <option value="{{ valor }}" {% if serie.periodicidade == valor %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3 pt-2">
+        <button type="submit"
+                class="px-5 py-2 bg-brand hover:bg-brand-dark text-white rounded-lg text-sm font-semibold transition">
+          Salvar
+        </button>
+        <button type="button" id="btn-cancelar-serie"
+                class="px-5 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition">
+          Cancelar
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+

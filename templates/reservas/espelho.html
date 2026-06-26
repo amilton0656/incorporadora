@@ -119,7 +119,7 @@
               <a href="{% url 'reservas:negociacao_detail' cell.negociacao.pk %}"
                  class="block w-full rounded-lg p-2 text-white text-center transition hover:opacity-90 cursor-pointer"
                  style="background-color: {{ cell.cor }}"
-                 title="Ver negociação #{{ cell.negociacao.numero }}">
+                 title="Ver reserva #{{ cell.negociacao.numero }}">
                 <div class="text-xs font-bold leading-tight truncate">{{ cell.unidade.numero }}</div>
                 <div class="text-xs opacity-80">{{ cell.unidade.area_privativa|brl_area:2 }} m²</div>
                 <div class="text-xs opacity-75 truncate">{{ cell.gar_str|default:"&nbsp;" }}</div>

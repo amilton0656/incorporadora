@@ -52,15 +52,15 @@
 {% else %}
 
 <!-- Board Kanban -->
-<div class="flex gap-4 overflow-x-auto pb-4" style="min-height: 70vh;">
+<div id="kanban-board" class="flex gap-4 overflow-x-auto pb-4 select-none" style="min-height: 70vh;">
   {% for col in colunas %}
-  <div class="flex-shrink-0 w-72 flex flex-col">
+  <div class="flex-shrink-0 w-72 flex flex-col kanban-col" data-etapa-id="{{ col.etapa.pk }}" data-etapa-cor="{{ col.etapa.cor }}">
 
     <!-- Cabeçalho da coluna -->
     <div class="rounded-t-xl px-3 py-2.5 text-white" style="background-color: {{ col.etapa.cor }}">
       <div class="flex items-center justify-between">
         <h3 class="font-semibold text-sm">{{ col.etapa.nome }}</h3>
-        <span class="text-xs font-medium bg-white/20 px-2 py-0.5 rounded-full">{{ col.reservas|length }}</span>
+        <span class="text-xs font-medium bg-white/20 px-2 py-0.5 rounded-full col-count">{{ col.reservas|length }}</span>
       </div>
       {% if col.total %}
       <p class="text-xs text-white/80 mt-0.5">{{ col.total|brl_moeda }}</p>
@@ -68,14 +68,16 @@
     </div>
 
     <!-- Cards -->
-    <div class="flex-1 bg-gray-100 rounded-b-xl p-2 space-y-2">
+    <div class="kanban-drop-zone flex-1 bg-gray-100 rounded-b-xl p-2 space-y-2 transition-colors"
+         data-etapa-id="{{ col.etapa.pk }}">
       {% for neg in col.reservas %}
-      <div class="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:border-brand/40 transition">
+      <div class="kanban-card bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:border-brand/40 transition cursor-grab active:cursor-grabbing"
+           draggable="true"
+           data-neg-id="{{ neg.pk }}"
+           data-etapa-id="{{ col.etapa.pk }}">
 
         <div class="flex items-start justify-between mb-2">
-          <div class="flex items-center gap-2">
-            <span class="text-xs font-bold text-brand">#{{ neg.numero }}</span>
-          </div>
+          <span class="text-xs font-bold text-brand">#{{ neg.numero }}</span>
           <span class="text-xs text-gray-400">{{ neg.data_abertura|date:'d/m/Y' }}</span>
         </div>
 
@@ -108,7 +110,7 @@
 
       </div>
       {% empty %}
-      <div class="text-center text-gray-400 text-xs py-6">Nenhuma reserva</div>
+      <div class="text-center text-gray-400 text-xs py-6 empty-msg">Nenhuma reserva</div>
       {% endfor %}
     </div>
 
@@ -117,4 +119,101 @@
 </div>
 
 {% endif %}
+
+<script>
+(function () {
+  const board = document.getElementById('kanban-board');
+  if (!board) return;
+
+  const CSRF = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+
+  // ── Scroll horizontal por arrastar ──────────────────────────────────────────
+  let scrolling = false, startX, scrollLeft;
+
+  board.addEventListener('mousedown', e => {
+    if (e.target.closest('.kanban-card')) return; // não interfere no drag de cards
+    if (e.button !== 0) return;
+    scrolling = true;
+    startX = e.pageX - board.offsetLeft;
+    scrollLeft = board.scrollLeft;
+    board.style.cursor = 'grabbing';
+  });
+  document.addEventListener('mouseup', () => { scrolling = false; board.style.cursor = ''; });
+  board.addEventListener('mousemove', e => {
+    if (!scrolling) return;
+    e.preventDefault();
+    board.scrollLeft = scrollLeft - (e.pageX - board.offsetLeft - startX);
+  });
+
+  // ── Drag-and-drop de cards entre colunas ────────────────────────────────────
+  let dragCard = null;
+
+  document.querySelectorAll('.kanban-card').forEach(card => {
+    card.addEventListener('dragstart', e => {
+      dragCard = card;
+      e.dataTransfer.effectAllowed = 'move';
+      setTimeout(() => card.classList.add('opacity-40'), 0);
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('opacity-40');
+      dragCard = null;
+      document.querySelectorAll('.kanban-drop-zone').forEach(z => z.classList.remove('bg-brand/10', 'ring-2', 'ring-brand'));
+    });
+  });
+
+  document.querySelectorAll('.kanban-drop-zone').forEach(zone => {
+    zone.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      zone.classList.add('bg-brand/10', 'ring-2', 'ring-brand');
+    });
+    zone.addEventListener('dragleave', e => {
+      if (!zone.contains(e.relatedTarget)) {
+        zone.classList.remove('bg-brand/10', 'ring-2', 'ring-brand');
+      }
+    });
+    zone.addEventListener('drop', e => {
+      e.preventDefault();
+      zone.classList.remove('bg-brand/10', 'ring-2', 'ring-brand');
+      if (!dragCard) return;
+
+      const novaEtapaId = zone.dataset.etapaId;
+      const etapaAtualId = dragCard.dataset.etapaId;
+      if (novaEtapaId === etapaAtualId) return; // mesma coluna, ignora
+
+      const negId = dragCard.dataset.negId;
+
+      // Move o card visualmente
+      const emptyMsg = zone.querySelector('.empty-msg');
+      if (emptyMsg) emptyMsg.remove();
+      zone.appendChild(dragCard);
+      dragCard.dataset.etapaId = novaEtapaId;
+
+      // Atualiza contadores
+      atualizarContador(etapaAtualId);
+      atualizarContador(novaEtapaId);
+
+      // POST para alterar etapa
+      fetch(`/reservas/${negId}/alterar-etapa/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRFToken': CSRF,
+        },
+        body: `etapa_id=${novaEtapaId}`,
+      }).catch(() => {});
+    });
+  });
+
+  function atualizarContador(etapaId) {
+    const col = document.querySelector(`.kanban-col[data-etapa-id="${etapaId}"]`);
+    if (!col) return;
+    const count = col.querySelectorAll('.kanban-card').length;
+    const badge = col.querySelector('.col-count');
+    if (badge) badge.textContent = count;
+  }
+})();
+</script>
+
 {% endblock %}

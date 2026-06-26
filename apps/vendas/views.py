@@ -48,7 +48,7 @@ def _unidades_principais(empreendimento, modo):
         unidade_principal__isnull=True,
         deletado_em__isnull=True,
     ).exclude(
-        tipo__categoria='complementar'  # exclui garagens/HBs sem vínculo cadastrado
+        tipo__categoria='complementar'
     ).select_related('status', 'tipo').order_by('bloco__ordem', 'ordem', 'numero')
     if modo == 'disponiveis':
         qs = qs.filter(
