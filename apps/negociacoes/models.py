@@ -6,24 +6,23 @@ from simple_history.models import HistoricalRecords
 
 import datetime as _dt
 from apps.core.models import Empresa, SoftDeleteModel
-
-def _date_hoje():
-    return _dt.date.today()
 from apps.empreendimentos.models import Empreendimento, Unidade
 from apps.pessoas.models import Pessoa
 from apps.vendas.models import TabelaSerie, TabelaVendasItem
 
 
+def _date_hoje():
+    return _dt.date.today()
+
+
 # ─── Workflow ──────────────────────────────────────────────────────────────────
 
 class EtapaWorkflow(models.Model):
-    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name='etapas_workflow')
-    nome = models.CharField('Nome', max_length=100)
-    cor = models.CharField('Cor', max_length=7, default='#3B82F6',
-                           help_text='Cor hexadecimal, ex: #3B82F6')
-    ordem = models.PositiveIntegerField('Ordem', default=0)
-    is_inicial = models.BooleanField('Etapa inicial', default=False,
-                                     help_text='Nova negociação entra nesta etapa')
+    empresa    = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name='etapas_workflow')
+    nome       = models.CharField('Nome', max_length=100)
+    cor        = models.CharField('Cor', max_length=7, default='#3B82F6')
+    ordem      = models.PositiveIntegerField('Ordem', default=0)
+    is_inicial = models.BooleanField('Etapa inicial', default=False)
 
     class Meta:
         db_table = 'inc_etapa_workflow'
@@ -36,13 +35,11 @@ class EtapaWorkflow(models.Model):
 
     @property
     def destinos(self):
-        return EtapaWorkflow.objects.filter(
-            transicoes_entrada__origem=self
-        ).order_by('ordem')
+        return EtapaWorkflow.objects.filter(transicoes_entrada__origem=self).order_by('ordem')
 
 
 class TransicaoWorkflow(models.Model):
-    origem = models.ForeignKey(EtapaWorkflow, on_delete=models.CASCADE, related_name='transicoes_saida')
+    origem  = models.ForeignKey(EtapaWorkflow, on_delete=models.CASCADE, related_name='transicoes_saida')
     destino = models.ForeignKey(EtapaWorkflow, on_delete=models.CASCADE, related_name='transicoes_entrada')
 
     class Meta:
@@ -55,9 +52,10 @@ class TransicaoWorkflow(models.Model):
         return f'{self.origem} → {self.destino}'
 
 
-# ─── Negociação ────────────────────────────────────────────────────────────────
+# ─── Proposta ──────────────────────────────────────────────────────────────────
 
-class Negociacao(SoftDeleteModel):
+class Proposta(SoftDeleteModel):
+    """Container principal da venda: partes, unidades, tabela e workflow."""
     STATUS_ATIVA     = 'ativa'
     STATUS_CANCELADA = 'cancelada'
     STATUS_VENDIDA   = 'vendida'
@@ -69,106 +67,176 @@ class Negociacao(SoftDeleteModel):
         (STATUS_DISTRATO,  'Distrato'),
     ]
 
-    numero              = models.PositiveIntegerField('Número', unique=True, editable=False)
-    empresa             = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name='negociacoes')
-    empreendimento      = models.ForeignKey(Empreendimento, on_delete=models.PROTECT, related_name='negociacoes')
-    tabela              = models.ForeignKey(
-                            'vendas.TabelaVendas', on_delete=models.SET_NULL,
-                            null=True, blank=True, related_name='negociacoes',
-                            verbose_name='Tabela de vendas',
-                          )
-    etapa               = models.ForeignKey(EtapaWorkflow, on_delete=models.PROTECT, related_name='negociacoes')
-    status              = models.CharField('Status', max_length=10, choices=STATUS_CHOICES, default=STATUS_ATIVA)
-    data_abertura       = models.DateField('Data da proposta', default=_date_hoje)
-    desconto_percentual = models.DecimalField('Desconto (%)', max_digits=5, decimal_places=2,
-                                              default=Decimal('0'), blank=True)
-    observacoes         = models.TextField('Observações', blank=True)
-    criado_em           = models.DateTimeField(auto_now_add=True)
-    atualizado_em       = models.DateTimeField(auto_now=True)
-    history             = HistoricalRecords(table_name='inc_historical_negociacao')
+    numero         = models.PositiveIntegerField('Número', unique=True, editable=False)
+    empresa        = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name='propostas')
+    empreendimento = models.ForeignKey(Empreendimento, on_delete=models.PROTECT, related_name='propostas')
+    tabela         = models.ForeignKey(
+                        'vendas.TabelaVendas', on_delete=models.SET_NULL,
+                        null=True, blank=True, related_name='propostas',
+                        verbose_name='Tabela de vendas',
+                     )
+    etapa          = models.ForeignKey(EtapaWorkflow, on_delete=models.PROTECT, related_name='propostas')
+    status         = models.CharField('Status', max_length=10, choices=STATUS_CHOICES, default=STATUS_ATIVA)
+    data_abertura  = models.DateField('Data da proposta', default=_date_hoje)
+    observacoes    = models.TextField('Observações', blank=True)
+    criado_em      = models.DateTimeField(auto_now_add=True)
+    atualizado_em  = models.DateTimeField(auto_now=True)
+    history        = HistoricalRecords(table_name='inc_historical_proposta')
 
     class Meta:
-        db_table = 'inc_negociacao'
+        db_table = 'inc_proposta'
         ordering = ['-numero']
-        verbose_name = 'Negociação'
-        verbose_name_plural = 'Negociações'
+        verbose_name = 'Proposta'
+        verbose_name_plural = 'Propostas'
 
     def __str__(self):
-        return f'#{self.numero}'
+        return f'Proposta #{self.numero}'
 
     def save(self, *args, **kwargs):
         if not self.numero:
-            last = Negociacao.all_objects.order_by('-numero').first()
+            last = Proposta.all_objects.order_by('-numero').first()
             self.numero = (last.numero + 1) if last else 1
         super().save(*args, **kwargs)
 
     @property
     def proponente(self):
-        parte = self.partes.filter(tipo='proponente').first()
+        parte = self.partes.filter(tipo__slug='proponente').first()
         return parte.pessoa if parte else None
 
     @property
     def unidade_principal(self):
-        """Primeira unidade principal (para compatibilidade)."""
         nu = self.unidades.select_related('unidade').first()
         return nu.unidade if nu else None
 
     @property
+    def negociacao_ativa(self):
+        """Última negociação (rodada) ativa."""
+        return self.negociacoes.filter(status=Negociacao.STATUS_ATIVA).last()
+
+    @property
     def valor_negociado(self):
+        """Valor da rodada ativa (ou zero)."""
+        neg = self.negociacao_ativa
+        return neg.valor_proposto if neg else Decimal('0')
+
+
+class PropostaUnidade(models.Model):
+    """Unidades vinculadas a uma proposta."""
+    proposta    = models.ForeignKey(Proposta, on_delete=models.CASCADE, related_name='unidades')
+    unidade     = models.ForeignKey(Unidade, on_delete=models.PROTECT, related_name='proposta_unidades')
+    tabela_item = models.ForeignKey(TabelaVendasItem, on_delete=models.SET_NULL,
+                                    null=True, blank=True, related_name='+')
+
+    class Meta:
+        db_table = 'inc_proposta_unidade'
+        unique_together = ('proposta', 'unidade')
+        ordering = ['unidade__bloco__ordem', 'unidade__ordem', 'unidade__numero']
+        verbose_name = 'Unidade da Proposta'
+        verbose_name_plural = 'Unidades da Proposta'
+
+    def __str__(self):
+        return f'Proposta #{self.proposta.numero} — {self.unidade.numero}'
+
+
+# ─── Tipos de parte (configurável) ────────────────────────────────────────────
+
+class TipoParteNegociacao(models.Model):
+    SLUG_PROPONENTE          = 'proponente'
+    SLUG_CONJUGE_PROPONENTE  = 'conjuge_proponente'
+    SLUG_SEGUNDO_PROPONENTE  = 'segundo_proponente'
+    SLUG_CONJUGE_SEGUNDO     = 'conjuge_segundo'
+    SLUG_INTERVENIENTE       = 'interveniente'
+    SLUG_CORRETOR            = 'corretor'
+    SLUG_IMOBILIARIA         = 'imobiliaria'
+    SLUG_IMOBILIARIA_PARCEIRA= 'imobiliaria_parceira'
+
+    TIPOS_PADRAO = [
+        (SLUG_PROPONENTE,          'Proponente'),
+        (SLUG_SEGUNDO_PROPONENTE,  'Segundo Proponente'),
+        (SLUG_INTERVENIENTE,       'Interveniente'),
+        (SLUG_CORRETOR,            'Corretor'),
+        (SLUG_IMOBILIARIA,         'Imobiliária'),
+        (SLUG_IMOBILIARIA_PARCEIRA,'Imobiliária Parceira'),
+    ]
+
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name='tipos_parte_negociacao')
+    nome    = models.CharField('Nome', max_length=100)
+    slug    = models.CharField('Código interno', max_length=30, blank=True)
+    ordem   = models.PositiveIntegerField('Ordem', default=0)
+
+    class Meta:
+        db_table = 'inc_tipo_parte_negociacao'
+        ordering = ['ordem', 'nome']
+        unique_together = ('empresa', 'nome')
+        verbose_name = 'Tipo de Parte'
+        verbose_name_plural = 'Tipos de Parte'
+
+    def __str__(self):
+        return self.nome
+
+
+class ParteProposta(models.Model):
+    """Partes envolvidas na proposta (imobiliária, corretor, proponentes, etc.)."""
+    proposta = models.ForeignKey(Proposta, on_delete=models.CASCADE, related_name='partes')
+    pessoa   = models.ForeignKey(Pessoa, on_delete=models.PROTECT, related_name='participacoes')
+    tipo     = models.ForeignKey(TipoParteNegociacao, on_delete=models.PROTECT, related_name='partes')
+    ordem    = models.PositiveIntegerField('Ordem', default=0)
+
+    class Meta:
+        db_table = 'inc_parte_proposta'
+        ordering = ['ordem', 'tipo__ordem', 'tipo__nome']
+        verbose_name = 'Parte da Proposta'
+        verbose_name_plural = 'Partes da Proposta'
+
+    def __str__(self):
+        return f'{self.tipo.nome}: {self.pessoa}'
+
+
+# ─── Negociação (rodada de valores) ───────────────────────────────────────────
+
+class Negociacao(models.Model):
+    """Rodada de negociação: conjunto de valores propostos dentro de uma Proposta."""
+    STATUS_ATIVA    = 'ativa'
+    STATUS_APROVADA = 'aprovada'
+    STATUS_RECUSADA = 'recusada'
+    STATUS_CHOICES  = [
+        (STATUS_ATIVA,    'Ativa'),
+        (STATUS_APROVADA, 'Aprovada'),
+        (STATUS_RECUSADA, 'Recusada'),
+    ]
+
+    proposta            = models.ForeignKey(Proposta, on_delete=models.CASCADE, related_name='negociacoes')
+    numero              = models.PositiveIntegerField('Rodada', editable=False)
+    status              = models.CharField('Status', max_length=10, choices=STATUS_CHOICES, default=STATUS_ATIVA)
+    desconto_percentual = models.DecimalField('Desconto (%)', max_digits=5, decimal_places=2,
+                                              default=Decimal('0'), blank=True)
+    observacoes         = models.TextField('Observações', blank=True)
+    criado_em           = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'inc_negociacao'
+        ordering = ['numero']
+        verbose_name = 'Negociação'
+        verbose_name_plural = 'Negociações'
+
+    def __str__(self):
+        return f'Proposta #{self.proposta.numero} — Rodada #{self.numero}'
+
+    def save(self, *args, **kwargs):
+        if not self.numero:
+            last = Negociacao.objects.filter(proposta=self.proposta).order_by('-numero').first()
+            self.numero = (last.numero + 1) if last else 1
+        super().save(*args, **kwargs)
+
+    @property
+    def valor_proposto(self):
         return sum((s.valor_total for s in self.series.all()), Decimal('0'))
 
 
-class NegociacaoUnidade(models.Model):
-    """Unidades vinculadas a uma negociação (suporte a múltiplas)."""
-    negociacao  = models.ForeignKey(Negociacao, on_delete=models.CASCADE, related_name='unidades')
-    unidade     = models.ForeignKey(Unidade, on_delete=models.PROTECT, related_name='negociacao_unidades')
-    tabela_item = models.ForeignKey(TabelaVendasItem, on_delete=models.SET_NULL,
-                                    null=True, blank=True, related_name='+',
-                                    verbose_name='Item da tabela de vendas')
-
-    class Meta:
-        db_table = 'inc_negociacao_unidade'
-        unique_together = ('negociacao', 'unidade')
-        ordering = ['unidade__bloco__ordem', 'unidade__ordem', 'unidade__numero']
-        verbose_name = 'Unidade da Negociação'
-        verbose_name_plural = 'Unidades da Negociação'
-
-    def __str__(self):
-        return f'#{self.negociacao.numero} — {self.unidade.numero}'
-
-
-# ─── Partes ────────────────────────────────────────────────────────────────────
-
-class ParteNegociacao(models.Model):
-    TIPO_CHOICES = [
-        ('proponente',          'Proponente'),
-        ('conjuge_proponente',  'Cônjuge do Proponente'),
-        ('segundo_proponente',  'Segundo Proponente'),
-        ('conjuge_segundo',     'Cônjuge do 2º Proponente'),
-        ('interveniente',       'Interveniente'),
-        ('corretor',            'Corretor'),
-        ('imobiliaria',         'Imobiliária'),
-        ('imobiliaria_parceira','Imobiliária Parceira'),
-    ]
-
-    negociacao = models.ForeignKey(Negociacao, on_delete=models.CASCADE, related_name='partes')
-    pessoa     = models.ForeignKey(Pessoa, on_delete=models.PROTECT, related_name='participacoes')
-    tipo       = models.CharField('Tipo', max_length=25, choices=TIPO_CHOICES)
-    ordem      = models.PositiveIntegerField('Ordem', default=0)
-
-    class Meta:
-        db_table = 'inc_parte_negociacao'
-        ordering = ['ordem', 'tipo']
-        verbose_name = 'Parte da Negociação'
-        verbose_name_plural = 'Partes da Negociação'
-
-    def __str__(self):
-        return f'{self.get_tipo_display()}: {self.pessoa}'
-
-
-# ─── Séries da proposta ────────────────────────────────────────────────────────
+# ─── Séries da negociação ──────────────────────────────────────────────────────
 
 class SerieNegociacao(models.Model):
+    """Séries de pagamento propostas em uma rodada de negociação."""
     TIPO_CHOICES = [
         ('ato',              'Ato'),
         ('parcelas_mensais', 'Parcelas Mensais'),
@@ -179,31 +247,31 @@ class SerieNegociacao(models.Model):
         ('outro',            'Outro'),
     ]
     PERIODICIDADE_CHOICES = [
-        ('mensal',         'Mensal'),
-        ('bimestral',      'Bimestral'),
-        ('trimestral',     'Trimestral'),
-        ('quadrimestral',  'Quadrimestral'),
-        ('semestral',      'Semestral'),
-        ('anual',          'Anual'),
+        ('mensal',        'Mensal'),
+        ('bimestral',     'Bimestral'),
+        ('trimestral',    'Trimestral'),
+        ('quadrimestral', 'Quadrimestral'),
+        ('semestral',     'Semestral'),
+        ('anual',         'Anual'),
     ]
 
-    negociacao           = models.ForeignKey(Negociacao, on_delete=models.CASCADE, related_name='series')
-    serie_ref            = models.ForeignKey(TabelaSerie, on_delete=models.SET_NULL,
-                                             null=True, blank=True, related_name='+',
-                                             verbose_name='Série de referência (tabela)')
-    tipo                 = models.CharField('Tipo', max_length=20, choices=TIPO_CHOICES)
-    descricao            = models.CharField('Descrição', max_length=100, blank=True)
-    quantidade           = models.PositiveIntegerField('Qtd. parcelas', default=1)
-    valor_por_parcela    = models.DecimalField('Valor por parcela', max_digits=14, decimal_places=2, default=Decimal('0'))
+    negociacao               = models.ForeignKey(Negociacao, on_delete=models.CASCADE, related_name='series')
+    serie_ref                = models.ForeignKey(TabelaSerie, on_delete=models.SET_NULL,
+                                                 null=True, blank=True, related_name='+')
+    tipo                     = models.CharField('Tipo', max_length=20, choices=TIPO_CHOICES)
+    descricao                = models.CharField('Descrição', max_length=100, blank=True)
+    quantidade               = models.PositiveIntegerField('Qtd. parcelas', default=1)
+    valor_por_parcela        = models.DecimalField('Valor por parcela', max_digits=14, decimal_places=2,
+                                                    default=Decimal('0'))
     data_primeiro_vencimento = models.DateField('Data 1º vencimento', null=True, blank=True)
-    periodicidade        = models.CharField('Periodicidade', max_length=15,
-                                            choices=PERIODICIDADE_CHOICES, blank=True, default='')
+    periodicidade            = models.CharField('Periodicidade', max_length=15,
+                                                choices=PERIODICIDADE_CHOICES, blank=True, default='')
 
     class Meta:
         db_table = 'inc_serie_negociacao'
         ordering = ['tipo', 'pk']
-        verbose_name = 'Série da Proposta'
-        verbose_name_plural = 'Séries da Proposta'
+        verbose_name = 'Série da Negociação'
+        verbose_name_plural = 'Séries da Negociação'
 
     def __str__(self):
         return f'{self.get_tipo_display()} ({self.quantidade}×)'
@@ -213,22 +281,30 @@ class SerieNegociacao(models.Model):
         return (self.quantidade or 0) * (self.valor_por_parcela or Decimal('0'))
 
 
-# ─── Histórico de etapas ───────────────────────────────────────────────────────
+# ─── Histórico de etapas da proposta ──────────────────────────────────────────
 
-class HistoricoNegociacao(models.Model):
-    negociacao      = models.ForeignKey(Negociacao, on_delete=models.CASCADE, related_name='historico')
-    etapa_anterior  = models.ForeignKey(EtapaWorkflow, on_delete=models.PROTECT,
-                                        related_name='+', null=True, blank=True)
-    etapa_nova      = models.ForeignKey(EtapaWorkflow, on_delete=models.PROTECT, related_name='+')
-    usuario         = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
-    data            = models.DateTimeField(auto_now_add=True)
-    observacao      = models.TextField('Observação', blank=True)
+class HistoricoProposta(models.Model):
+    proposta       = models.ForeignKey(Proposta, on_delete=models.CASCADE, related_name='historico')
+    etapa_anterior = models.ForeignKey(EtapaWorkflow, on_delete=models.PROTECT,
+                                       related_name='+', null=True, blank=True)
+    etapa_nova     = models.ForeignKey(EtapaWorkflow, on_delete=models.PROTECT, related_name='+')
+    usuario        = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    data           = models.DateTimeField(auto_now_add=True)
+    observacao     = models.TextField('Observação', blank=True)
 
     class Meta:
-        db_table = 'inc_historico_negociacao'
+        db_table = 'inc_historico_proposta'
         ordering = ['-data']
         verbose_name = 'Histórico de Etapa'
         verbose_name_plural = 'Histórico de Etapas'
 
     def __str__(self):
-        return f'#{self.negociacao.numero} → {self.etapa_nova}'
+        return f'Proposta #{self.proposta.numero} → {self.etapa_nova}'
+
+
+# ─── Aliases de compatibilidade (removidos após reescrita de views/templates) ──
+NegociacaoUnidade   = PropostaUnidade
+ParteNegociacao     = ParteProposta
+HistoricoNegociacao = HistoricoProposta
+# Proposta_alias permite que views.py use Proposta via nome antigo durante transição
+Proposta_legacy     = Proposta

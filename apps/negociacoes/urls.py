@@ -18,6 +18,7 @@ urlpatterns = [
     # API sugestões
     path('negociacoes/api/conjuge/<int:pessoa_pk>/', views.api_conjuge_sugerido, name='api_conjuge_sugerido'),
     # Unidades
+    path('negociacoes/<int:pk>/change-tabela/', views.negociacao_change_tabela, name='negociacao_change_tabela'),
     path('negociacoes/<int:pk>/reset-series/', views.negociacao_reset_series, name='negociacao_reset_series'),
     path('negociacoes/<int:pk>/unidades/adicionar/', views.negociacao_unidade_add, name='negociacao_unidade_add'),
     path('negociacoes/<int:pk>/unidades/<int:nu_pk>/remover/', views.negociacao_unidade_remove, name='negociacao_unidade_remove'),
@@ -28,6 +29,11 @@ urlpatterns = [
     path('negociacoes/<int:pk>/series/adicionar/', views.serie_add, name='serie_add'),
     path('negociacoes/<int:pk>/series/<int:serie_pk>/editar/', views.serie_update, name='serie_update'),
     path('negociacoes/<int:pk>/series/<int:serie_pk>/remover/', views.serie_remove, name='serie_remove'),
+    # Config Tipos de Parte
+    path('configuracoes/tipos-parte/', views.TipoParteListView.as_view(), name='tipo_parte_list'),
+    path('configuracoes/tipos-parte/novo/', views.TipoParteCreateView.as_view(), name='tipo_parte_create'),
+    path('configuracoes/tipos-parte/<int:pk>/editar/', views.TipoParteUpdateView.as_view(), name='tipo_parte_update'),
+    path('configuracoes/tipos-parte/<int:pk>/excluir/', views.TipoParteDeleteView.as_view(), name='tipo_parte_delete'),
     # Config Workflow
     path('configuracoes/workflow/', views.EtapaWorkflowListView.as_view(), name='etapa_list'),
     path('configuracoes/workflow/reordenar/', views.reordenar_etapas, name='etapa_reordenar'),

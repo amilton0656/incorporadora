@@ -98,9 +98,9 @@
         <!-- Linha inicial: Proponente -->
         <div class="flex gap-2 items-center proponente-row">
           <select name="partes_tipo" class="w-44 px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand transition">
-            {% for valor, label in tipos_parte %}{% if valor in "proponente,conjuge_proponente,segundo_proponente,conjuge_segundo,interveniente" %}
-            <option value="{{ valor }}" {% if valor == 'proponente' %}selected{% endif %}>{{ label }}</option>
-            {% endif %}{% endfor %}
+            {% for tp in tipos_parte %}
+            <option value="{{ tp.pk }}" {% if tp.slug == 'proponente' %}selected{% endif %}>{{ tp.nome }}</option>
+            {% endfor %}
           </select>
           <select name="partes_pessoa" class="comprador-sel flex-1 px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand transition"
                   onchange="onProponenteChange(this)">
@@ -158,9 +158,9 @@
 <template id="tpl-comprador">
   <div class="flex gap-2 items-center proponente-row">
     <select name="partes_tipo" class="w-44 px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand transition">
-      {% for valor, label in tipos_parte %}{% if valor in "proponente,conjuge_proponente,segundo_proponente,conjuge_segundo,interveniente" %}
-      <option value="{{ valor }}">{{ label }}</option>
-      {% endif %}{% endfor %}
+      {% for tp in tipos_parte %}
+      <option value="{{ tp.pk }}">{{ tp.nome }}</option>
+      {% endfor %}
     </select>
     <select name="partes_pessoa" class="comprador-sel flex-1 px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand transition"
             onchange="onProponenteChange(this)">
@@ -197,10 +197,10 @@ function initTS(el, ph) {
   new TomSelect(el, { placeholder: ph || 'Digitar para buscar…', allowEmptyOption: true, maxOptions: 100 });
 }
 
-function addComprador(tipoDefault, pessoaId, pessoaNome) {
+function addComprador(tipoPk, pessoaId, pessoaNome) {
   const frag = document.getElementById('tpl-comprador').content.cloneNode(true);
   const list  = document.getElementById('proponentes-list');
-  if (tipoDefault) frag.querySelector('[name="partes_tipo"]').value = tipoDefault;
+  if (tipoPk) frag.querySelector('[name="partes_tipo"]').value = tipoPk;
   list.appendChild(frag);
   const sel = list.lastElementChild.querySelector('.comprador-sel');
   initTS(sel, 'Selecionar…');
@@ -212,8 +212,9 @@ function addComprador(tipoDefault, pessoaId, pessoaNome) {
 
 function onProponenteChange(sel) {
   const pessoaId = sel.value;
-  const tipo = sel.closest('.proponente-row')?.querySelector('[name="partes_tipo"]')?.value;
-  if (!pessoaId || tipo !== 'proponente') return;
+  const tipoSel = sel.closest('.proponente-row')?.querySelector('[name="partes_tipo"]');
+  const tipoText = tipoSel?.options[tipoSel.selectedIndex]?.text || '';
+  if (!pessoaId || !tipoText.toLowerCase().includes('proponente')) return;
 
   // Busca cônjuge sugerido via API
   fetch(`/negociacoes/api/conjuge/${pessoaId}/`)
@@ -232,7 +233,11 @@ function onProponenteChange(sel) {
           btn.className = 'px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition';
           btn.textContent = `+ Adicionar ${c.nome}`;
           btn.onclick = () => {
-            addComprador('conjuge_proponente', c.pk, c.nome);
+            // Busca o PK do tipo cônjuge pelo texto
+            const tipoSels = document.querySelectorAll('[name="partes_tipo"] option');
+            let conjPk = '';
+            tipoSels.forEach(o => { if (o.text.toLowerCase().includes('njuge')) conjPk = o.value; });
+            addComprador(conjPk, c.pk, c.nome);
             box.classList.add('hidden');
           };
           bots.appendChild(btn);

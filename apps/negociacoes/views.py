@@ -1,4 +1,4 @@
-from decimal import Decimal
+﻿from decimal import Decimal
 
 from django import forms as django_forms
 from django.contrib import messages
@@ -14,8 +14,10 @@ from apps.core.models import Empresa
 from apps.empreendimentos.models import Empreendimento, Unidade
 from apps.pessoas.models import Pessoa, TipoPapel
 from apps.vendas.models import TabelaVendasItem
-from .models import (EtapaWorkflow, HistoricoNegociacao, Negociacao,
-                     ParteNegociacao, SerieNegociacao, TransicaoWorkflow)
+from .models import (EtapaWorkflow, HistoricoNegociacao, HistoricoProposta,
+                     Negociacao, NegociacaoUnidade, ParteNegociacao, ParteProposta,
+                     Proposta, PropostaUnidade, SerieNegociacao,
+                     TipoParteNegociacao, TransicaoWorkflow)
 
 _INPUT = ('w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm '
           'focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition')
@@ -58,7 +60,7 @@ def _add_months(dt, months):
 
 
 def _gerar_calendario(series):
-    """Gera lista de parcelas ordenadas por data a partir das séries propostas."""
+    """Gera lista de parcelas ordenadas por data a partir das sÃ©ries propostas."""
     from datetime import date as _date
     MESES = {
         'mensal': 1, 'bimestral': 2, 'trimestral': 3,
@@ -73,7 +75,7 @@ def _gerar_calendario(series):
             else:
                 data = None
             parcelas.append({
-                'serie_label': serie.get_tipo_display() + (f' — {serie.descricao}' if serie.descricao else ''),
+                'serie_label': serie.get_tipo_display() + (f' â€” {serie.descricao}' if serie.descricao else ''),
                 'data': data,
                 'valor': serie.valor_por_parcela,
             })
@@ -83,20 +85,21 @@ def _gerar_calendario(series):
     return parcelas
 
 
-def _gerar_resumo(neg, series):
-    """Compara valores da tabela vs proposta por tipo de série."""
+def _gerar_resumo(proposta, negociacao_atual, series):
+    """Compara valores da tabela vs proposta por tipo de serie.
+    proposta = Proposta; negociacao_atual = Negociacao (rodada) ativa; series = suas series.
+    """
     from apps.vendas.models import TabelaSerie
-
     TIPO_LABEL = dict(TabelaSerie.TIPO_CHOICES)
     TIPO_ORDEM = ['ato', 'parcelas_mensais', 'reforcos', 'chaves', 'financiamento', 'dacao', 'outro']
 
-    # Totais da tabela: mesma lógica do card "Valores da Tabela de Vendas"
-    from .models import NegociacaoUnidade
     from apps.vendas.models import TabelaVendasItem as TVI_R, TabelaSerie as TS_R
+    # alias para a funcao usar proposta no lugar de neg
+    neg = proposta
     tabela_por_tipo = {}
 
     if neg.tabela_id:
-        unidade_ids_r = list(NegociacaoUnidade.objects.filter(negociacao=neg).values_list('unidade_id', flat=True))
+        unidade_ids_r = list(PropostaUnidade.objects.filter(proposta=neg).values_list('unidade_id', flat=True))
         encontrados_r = set()
         for item in TVI_R.objects.filter(
             tabela_id=neg.tabela_id, unidade_id__in=unidade_ids_r
@@ -106,9 +109,8 @@ def _gerar_resumo(neg, series):
                 tipo = v.serie.tipo
                 tabela_por_tipo[tipo] = tabela_por_tipo.get(tipo, Decimal('0')) + v.valor_total
 
-        # Fallback: calcula via valor_tabela × percentual para unidades não nos itens
         for serie in TS_R.objects.filter(tabela_id=neg.tabela_id):
-            for nu in NegociacaoUnidade.objects.filter(negociacao=neg).select_related('unidade'):
+            for nu in PropostaUnidade.objects.filter(proposta=neg).select_related('unidade'):
                 if nu.unidade_id in encontrados_r:
                     continue
                 tipo = serie.tipo
@@ -136,8 +138,8 @@ def _gerar_resumo(neg, series):
     total_tabela   = sum(tabela_por_tipo.values(),   Decimal('0'))
     total_proposto = sum(proposta_por_tipo.values(), Decimal('0'))
 
-    # Aplicar desconto sobre o total proposto
-    desconto_pct   = neg.desconto_percentual or Decimal('0')
+    # Desconto vem da rodada atual (Negociacao), nao da Proposta
+    desconto_pct   = (negociacao_atual.desconto_percentual if negociacao_atual else Decimal('0')) or Decimal('0')
     valor_desconto = (total_proposto * desconto_pct / Decimal('100')).quantize(Decimal('0.01'))
     total_com_desc = total_proposto - valor_desconto
 
@@ -157,7 +159,7 @@ def _get_etapa_inicial(empresa):
         or EtapaWorkflow.objects.filter(empresa=empresa).order_by('ordem').first()
 
 
-# ─── Kanban ────────────────────────────────────────────────────────────────────
+# â”€â”€â”€ Kanban â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class EspelhoView(LoginRequiredMixin, View):
     template_name = 'negociacoes/espelho.html'
@@ -166,20 +168,19 @@ class EspelhoView(LoginRequiredMixin, View):
         from apps.empreendimentos.models import Empreendimento, Unidade
         empreendimento = get_object_or_404(Empreendimento.objects, pk=pk)
 
-        # Negociações ativas para marcar "Em Processo"
-        from .models import NegociacaoUnidade
+        # NegociaÃ§Ãµes ativas para marcar "Em Processo"
         em_processo_ids = set(
-            NegociacaoUnidade.objects.filter(
-                negociacao__empreendimento=empreendimento,
-                negociacao__status=Negociacao.STATUS_ATIVA,
+            PropostaUnidade.objects.filter(
+                proposta__empreendimento=empreendimento,
+                proposta__status=Proposta.STATUS_ATIVA,
             ).values_list('unidade_id', flat=True)
         )
         neg_por_unidade = {
-            nu.unidade_id: nu.negociacao
-            for nu in NegociacaoUnidade.objects.filter(
-                negociacao__empreendimento=empreendimento,
-                negociacao__status=Negociacao.STATUS_ATIVA,
-            ).select_related('negociacao')
+            nu.unidade_id: nu.proposta
+            for nu in PropostaUnidade.objects.filter(
+                proposta__empreendimento=empreendimento,
+                proposta__status=Proposta.STATUS_ATIVA,
+            ).select_related('proposta')
         }
 
         # Busca todas as unidades principais com linha/coluna definidas
@@ -193,9 +194,9 @@ class EspelhoView(LoginRequiredMixin, View):
             'complementares__designacoes',
         ).order_by('bloco__ordem', 'ordem', 'numero')
 
-        # Decide modo de exibição:
-        # Se alguma unidade tem linha/coluna → modo grade
-        # Caso contrário → modo colunas por bloco (fallback)
+        # Decide modo de exibiÃ§Ã£o:
+        # Se alguma unidade tem linha/coluna â†’ modo grade
+        # Caso contrÃ¡rio â†’ modo colunas por bloco (fallback)
         usa_grade = unidades.filter(linha__gt='', coluna__isnull=False).exists()
 
         contadores = {}
@@ -213,7 +214,7 @@ class EspelhoView(LoginRequiredMixin, View):
                 cor = u.status.cor if u.status else '#9ca3af'
             contadores[label] = contadores.get(label, 0) + 1
 
-            # Garagens e HBs: usa override se preenchido, senão busca nos vínculos
+            # Garagens e HBs: usa override se preenchido, senÃ£o busca nos vÃ­nculos
             if u.gars_tab_vendas:
                 gar_str = u.gars_tab_vendas
             else:
@@ -229,7 +230,7 @@ class EspelhoView(LoginRequiredMixin, View):
                 hbs = [d.nome for d in u.designacoes.all() if d.tipo == 'hobby_box']
                 hbs += [c.numero for c in u.complementares.all()
                         if c.tipo and 'obby' in c.tipo.nome]
-                # HBs de mesma matrícula: designações dos complementares → entre parênteses
+                # HBs de mesma matrÃ­cula: designaÃ§Ãµes dos complementares â†’ entre parÃªnteses
                 for c in u.complementares.all():
                     hbs += [f'({d.nome})' for d in c.designacoes.all() if d.tipo == 'hobby_box']
                 hb_str = ' / '.join(hbs)
@@ -238,7 +239,7 @@ class EspelhoView(LoginRequiredMixin, View):
                 'unidade': u,
                 'cor': cor,
                 'label': label,
-                'disponivel': not em_proc and u.status and 'ponív' in u.status.nome,
+                'disponivel': not em_proc and u.status and 'ponÃ­v' in u.status.nome,
                 'negociacao': neg_por_unidade.get(u.pk),
                 'gar_str': gar_str,
                 'hb_str': hb_str,
@@ -251,7 +252,7 @@ class EspelhoView(LoginRequiredMixin, View):
             except: return (999, l)
 
         if usa_grade:
-            # Agrupa unidades por bloco e constrói uma grade por bloco
+            # Agrupa unidades por bloco e constrÃ³i uma grade por bloco
             from collections import defaultdict, OrderedDict
             blocos_unidades = OrderedDict()
             for u in unidades:
@@ -343,8 +344,8 @@ class NegociacaoKanbanView(LoginRequiredMixin, View):
         emp_id = request.GET.get('empreendimento', '')
         q      = request.GET.get('q', '').strip()
 
-        qs = Negociacao.objects.filter(
-            empresa=empresa, status=Negociacao.STATUS_ATIVA
+        qs = Proposta.objects.filter(
+            empresa=empresa, status=Proposta.STATUS_ATIVA
         ).select_related('empreendimento', 'etapa').prefetch_related(
             'partes__pessoa',
             'unidades__unidade__bloco',
@@ -387,25 +388,25 @@ class NegociacaoKanbanView(LoginRequiredMixin, View):
         })
 
 
-# ─── Negociação CRUD ───────────────────────────────────────────────────────────
+# â”€â”€â”€ NegociaÃ§Ã£o CRUD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class NegociacaoForm(django_forms.ModelForm):
     tabela = django_forms.ModelChoiceField(
         queryset=None,
         required=False,
         label='Tabela de vendas',
-        help_text='Selecione a tabela de onde virão os valores da proposta.',
+        help_text='Selecione a tabela de onde virÃ£o os valores da proposta.',
     )
 
-    # Campos extras não presentes no model
+    # Campos extras nÃ£o presentes no model
     primeira_unidade = django_forms.ModelChoiceField(
         queryset=None, required=False, label='Primeira unidade',
-        help_text='Unidade inicial da negociação (apenas disponíveis).',
+        help_text='Unidade inicial da negociaÃ§Ã£o (apenas disponÃ­veis).',
     )
 
     class Meta:
-        model = Negociacao
-        fields = ['empreendimento', 'desconto_percentual', 'observacoes']
+        model = Proposta
+        fields = ['empreendimento', 'observacoes']
         widgets = {'observacoes': django_forms.Textarea(attrs={'rows': 3})}
 
     def __init__(self, *args, empresa=None, **kwargs):
@@ -416,7 +417,7 @@ class NegociacaoForm(django_forms.ModelForm):
             self.fields['primeira_unidade'].queryset = Unidade.objects.filter(
                 bloco__empreendimento__empresa=empresa,
                 unidade_principal__isnull=True,
-                status__nome__icontains='disponív',
+                status__nome__icontains='disponÃ­v',
             ).select_related('bloco__empreendimento')
             self.fields['tabela'].queryset = TabelaVendas.objects.filter(
                 empreendimento__empresa=empresa,
@@ -438,14 +439,14 @@ class NegociacaoCreateView(LoginRequiredMixin, View):
             'unidades': Unidade.objects.filter(
                 bloco__empreendimento__empresa=empresa,
                 unidade_principal__isnull=True,
-                status__nome__icontains='disponív',
+                status__nome__icontains='disponÃ­v',
             ).select_related('bloco__empreendimento', 'status').order_by(
                 'bloco__empreendimento__nome', 'bloco__ordem', 'ordem', 'numero'
             ) if empresa else [],
             'tabelas': TV.objects.filter(
                 empreendimento__empresa=empresa, ativa=True
             ).select_related('empreendimento').order_by('empreendimento__nome', 'nome') if empresa else [],
-            'tipos_parte': ParteNegociacao.TIPO_CHOICES,
+            'tipos_parte': TipoParteNegociacao.objects.filter(empresa=empresa) if empresa else [],
             'tipos_serie': SerieNegociacao.TIPO_CHOICES,
             'periodicidades': SerieNegociacao.PERIODICIDADE_CHOICES,
         }
@@ -492,32 +493,35 @@ class NegociacaoCreateView(LoginRequiredMixin, View):
             observacoes=request.POST.get('observacoes', '').strip(),
         )
         neg.save()
-        HistoricoNegociacao.objects.create(
-            negociacao=neg, etapa_anterior=None, etapa_nova=etapa,
+        HistoricoProposta.objects.create(
+            proposta=neg, etapa_anterior=None, etapa_nova=etapa,
             usuario=request.user, observacao='Proposta criada.',
         )
 
-        # Partes: imobiliária e corretor (campos dedicados)
+        # Partes: imobiliaria e corretor (campos dedicados com slug fixo)
         ordem = 0
-        for tipo, campo in [('imobiliaria', 'imobiliaria_id'), ('corretor', 'corretor_id')]:
+        for slug, campo in [('imobiliaria', 'imobiliaria_id'), ('corretor', 'corretor_id')]:
             pid = request.POST.get(campo)
             if pid:
-                ParteNegociacao.objects.create(negociacao=neg, pessoa_id=pid, tipo=tipo, ordem=ordem)
+                tipo_obj = _get_tipo_parte(empresa, slug)
+                ParteProposta.objects.create(proposta=neg, pessoa_id=pid, tipo=tipo_obj, ordem=ordem)
                 ordem += 1
 
-        # Compradores: arrays paralelos partes_tipo + partes_pessoa
-        for tipo, pid in zip(
+        # Compradores: arrays paralelos partes_tipo (pk) + partes_pessoa
+        for tipo_id, pid in zip(
             request.POST.getlist('partes_tipo'),
             request.POST.getlist('partes_pessoa'),
         ):
-            if pid and tipo:
-                ParteNegociacao.objects.create(negociacao=neg, pessoa_id=pid, tipo=tipo, ordem=ordem)
-                ordem += 1
+            if pid and tipo_id:
+                tipo_obj = TipoParteNegociacao.objects.filter(pk=tipo_id).first()
+                if tipo_obj:
+                    ParteProposta.objects.create(proposta=neg, pessoa_id=pid, tipo=tipo_obj, ordem=ordem)
+                    ordem += 1
 
         # Tabela global da proposta
         tabela_id = request.POST.get('tabela_id') or None
 
-        # Unidades — tabela_item resolvido a partir da tabela global
+        # Unidades â€” tabela_item resolvido a partir da tabela global
         for uid in request.POST.getlist('unidades_id'):
             if uid:
                 unidade = Unidade.objects.filter(pk=uid).first()
@@ -525,42 +529,23 @@ class NegociacaoCreateView(LoginRequiredMixin, View):
                     item = TabelaVendasItem.objects.filter(
                         tabela_id=tabela_id, unidade=unidade
                     ).first() if tabela_id else None
-                    NegociacaoUnidade.objects.get_or_create(
-                        negociacao=neg, unidade=unidade,
+                    PropostaUnidade.objects.get_or_create(
+                        proposta=neg, unidade=unidade,
                         defaults={'tabela_item': item},
                     )
 
-        # Séries (arrays paralelos)
-        for tipo, desc, qtd, valor, data, period in zip(
-            request.POST.getlist('series_tipo'),
-            request.POST.getlist('series_descricao'),
-            request.POST.getlist('series_quantidade'),
-            request.POST.getlist('series_valor'),
-            request.POST.getlist('series_data'),
-            request.POST.getlist('series_periodicidade'),
-        ):
-            if tipo:
-                SerieNegociacao.objects.create(
-                    negociacao=neg,
-                    tipo=tipo,
-                    descricao=desc.strip(),
-                    quantidade=int(qtd or 1),
-                    valor_por_parcela=_parse_decimal(valor or '0'),
-                    data_primeiro_vencimento=data or None,
-                    periodicidade=period or '',
-                )
+        # Cria rodada #1 e copia series da tabela como series propostas iniciais
+        neg_atual = Negociacao.objects.create(proposta=neg, numero=1, status='ativa')
 
-        # Copia séries da tabela como séries propostas iniciais
         if neg.tabela_id:
             from apps.vendas.models import TabelaSerie, TabelaVendasItem as TVI2
-            unidade_ids = list(NegociacaoUnidade.objects.filter(negociacao=neg).values_list('unidade_id', flat=True))
+            unidade_ids = list(PropostaUnidade.objects.filter(proposta=neg).values_list('unidade_id', flat=True))
             series_tabela = TabelaSerie.objects.filter(tabela_id=neg.tabela_id).order_by('tipo')
 
             for serie in series_tabela:
                 valor_parcela = Decimal('0')
                 encontrou_item = False
 
-                # Via TabelaVendasItemValor (valor exato na tabela)
                 for item in TVI2.objects.filter(
                     tabela_id=neg.tabela_id, unidade_id__in=unidade_ids
                 ).prefetch_related('valores__serie'):
@@ -568,13 +553,12 @@ class NegociacaoCreateView(LoginRequiredMixin, View):
                         valor_parcela += v.valor
                         encontrou_item = True
 
-                # Fallback: calcula via valor_tabela × percentual
                 if not encontrou_item:
-                    for nu in NegociacaoUnidade.objects.filter(negociacao=neg).select_related('unidade'):
+                    for nu in PropostaUnidade.objects.filter(proposta=neg).select_related('unidade'):
                         valor_parcela += serie.calcular_valor_parcela(nu.unidade.valor_tabela or Decimal('0'))
 
                 SerieNegociacao.objects.create(
-                    negociacao=neg,
+                    negociacao=neg_atual,
                     tipo=serie.tipo,
                     quantidade=serie.quantidade,
                     valor_por_parcela=valor_parcela,
@@ -588,17 +572,17 @@ class NegociacaoCreateView(LoginRequiredMixin, View):
 
 
 class NegociacaoDetailView(LoginRequiredMixin, DetailView):
-    model = Negociacao
+    model = Proposta
     template_name = 'negociacoes/negociacao_detail.html'
     context_object_name = 'neg'
 
     def get_object(self):
-        return get_object_or_404(Negociacao.all_objects, pk=self.kwargs['pk'])
+        return get_object_or_404(Proposta.all_objects, pk=self.kwargs['pk'])
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         neg = self.object
-        ctx['partes'] = neg.partes.select_related('pessoa__conjuge').prefetch_related(
+        ctx['partes'] = neg.partes.select_related('pessoa__conjuge', 'tipo').prefetch_related(
             'pessoa__representantes_legais__pessoa_fisica'
         ).all()
         ctx['neg_unidades'] = neg.unidades.select_related(
@@ -609,18 +593,21 @@ class NegociacaoDetailView(LoginRequiredMixin, DetailView):
             'unidade__complementares__tipo',
             'unidade__complementares__designacoes',
         ).all()
-        series = list(neg.series.all())
-        ctx['series'] = series
+        # Rodada ativa (Negociacao) dentro desta Proposta
+        neg_atual = neg.negociacao_ativa
+        ctx['neg_atual']  = neg_atual
+        series = list(neg_atual.series.all()) if neg_atual else []
+        ctx['series']    = series
         ctx['historico'] = neg.historico.select_related('etapa_anterior', 'etapa_nova', 'usuario').all()
-        ctx['destinos']  = neg.etapa.destinos if neg.status == Negociacao.STATUS_ATIVA else []
+        ctx['destinos']  = neg.etapa.destinos if neg.status == Proposta.STATUS_ATIVA else []
 
-        # Calendário de parcelas
+        # Calendario de parcelas
         ctx['calendario'] = _gerar_calendario(series)
 
-        # Resumo Tabela × Proposto × Diferença
-        ctx['resumo'] = _gerar_resumo(neg, series)
+        # Resumo Tabela Ã— Proposto Ã— DiferenÃ§a
+        ctx['resumo'] = _gerar_resumo(neg, neg_atual, series)
 
-        # Séries da tabela: usa neg.tabela (global) e soma por unidade
+        # SÃ©ries da tabela: usa neg.tabela (global) e soma por unidade
         from .models import NegociacaoUnidade
         from apps.vendas.models import TabelaVendasItem as TVI
         tabela_por_tipo = {}
@@ -631,7 +618,7 @@ class NegociacaoDetailView(LoginRequiredMixin, DetailView):
             from apps.vendas.models import TabelaSerie
             unidade_ids = list(neg.unidades.values_list('unidade_id', flat=True))
 
-            # Tenta via TabelaVendasItem (unidade está na tabela)
+            # Tenta via TabelaVendasItem (unidade estÃ¡ na tabela)
             itens_encontrados = set()
             for item in TVI.objects.filter(
                 tabela_id=neg.tabela_id, unidade_id__in=unidade_ids
@@ -647,12 +634,12 @@ class NegociacaoDetailView(LoginRequiredMixin, DetailView):
                             'periodicidade': v.serie.get_periodicidade_display() if v.serie.periodicidade else '',
                         }
 
-            # Fallback: calcula via valor_tabela × percentual para unidades não encontradas
+            # Fallback: calcula via valor_tabela Ã— percentual para unidades nÃ£o encontradas
             series = list(TabelaSerie.objects.filter(tabela_id=neg.tabela_id))
             if series:
                 for nu in neg.unidades.select_related('unidade').all():
                     if nu.unidade_id in itens_encontrados:
-                        continue  # já calculado via item
+                        continue  # jÃ¡ calculado via item
                     valor_base = nu.unidade.valor_tabela or Decimal('0')
                     for serie in series:
                         tipo = serie.tipo
@@ -673,40 +660,41 @@ class NegociacaoDetailView(LoginRequiredMixin, DetailView):
         ]
         ctx['tabela_total'] = sum(tabela_por_tipo.values(), Decimal('0'))
 
-        # Pessoas disponíveis para adicionar como parte
+        # Pessoas disponÃ­veis para adicionar como parte
         empresa = _get_empresa(self.request)
         ctx['pessoas_disponiveis'] = Pessoa.objects.filter(empresa=empresa) if empresa else []
-        ctx['tipos_parte'] = ParteNegociacao.TIPO_CHOICES
+        from apps.vendas.models import TabelaVendas as TV
+        ctx['tabelas_disponiveis'] = TV.objects.filter(
+            empreendimento=neg.empreendimento, ativa=True
+        ).order_by('nome') if empresa else []
+        ctx['tipos_parte'] = TipoParteNegociacao.objects.filter(empresa=empresa) if empresa else []
         ctx['tipos_serie'] = SerieNegociacao.TIPO_CHOICES
         ctx['periodicidades'] = SerieNegociacao.PERIODICIDADE_CHOICES
-        # Unidades disponíveis para adicionar (não vinculadas ainda a esta negociação)
+        # Unidades disponÃ­veis para adicionar (nÃ£o vinculadas ainda a esta negociaÃ§Ã£o)
         from apps.vendas.models import TabelaVendas as TV
         unidades_na_neg = set(neg.unidades.values_list('unidade_id', flat=True))
         ctx['unidades_disponiveis'] = Unidade.objects.filter(
             bloco__empreendimento=neg.empreendimento,
             unidade_principal__isnull=True,
-            status__nome__icontains='disponív',
+            status__nome__icontains='disponÃ­v',
         ).exclude(pk__in=unidades_na_neg).select_related('bloco', 'status') if empresa else []
-        ctx['tabelas_disponiveis'] = TV.objects.filter(
-            empreendimento=neg.empreendimento, ativa=True
-        ) if empresa else []
         return ctx
 
 
 class NegociacaoDeleteView(LoginRequiredMixin, View):
     def get(self, request, pk):
-        neg = get_object_or_404(Negociacao.objects, pk=pk)
+        neg = get_object_or_404(Proposta.objects, pk=pk)
         return render(request, 'negociacoes/negociacao_confirm_delete.html', {'neg': neg})
 
     def post(self, request, pk):
-        neg = get_object_or_404(Negociacao.objects, pk=pk)
+        neg = get_object_or_404(Proposta.objects, pk=pk)
         neg.soft_delete(user=request.user)
-        messages.success(request, f'Proposta #{neg.numero} excluída.')
+        messages.success(request, f'Proposta #{neg.numero} excluÃ­da.')
         return redirect('negociacoes:kanban')
 
 
 class NegociacaoUpdateView(LoginRequiredMixin, UpdateView):
-    model = Negociacao
+    model = Proposta
     form_class = NegociacaoForm
     template_name = 'negociacoes/negociacao_form.html'
 
@@ -716,18 +704,18 @@ class NegociacaoUpdateView(LoginRequiredMixin, UpdateView):
         return _style_form(form)
 
     def form_valid(self, form):
-        messages.success(self.request, 'Negociação atualizada.')
+        messages.success(self.request, 'NegociaÃ§Ã£o atualizada.')
         return super().form_valid(form)
 
     def get_success_url(self):
         return reverse_lazy('negociacoes:negociacao_detail', kwargs={'pk': self.object.pk})
 
 
-# ─── Avanço de etapa ───────────────────────────────────────────────────────────
+# â”€â”€â”€ AvanÃ§o de etapa â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @login_required
 def avancar_etapa(request, pk):
-    neg = get_object_or_404(Negociacao.objects, pk=pk)
+    neg = get_object_or_404(Proposta.objects, pk=pk)
     if request.method != 'POST':
         return redirect('negociacoes:negociacao_detail', pk=pk)
 
@@ -735,31 +723,31 @@ def avancar_etapa(request, pk):
     observacao  = request.POST.get('observacao', '')
     destino     = get_object_or_404(EtapaWorkflow, pk=destino_id)
 
-    # Verifica se a transição é permitida
+    # Verifica se a transiÃ§Ã£o Ã© permitida
     if not TransicaoWorkflow.objects.filter(origem=neg.etapa, destino=destino).exists():
-        messages.error(request, 'Transição não permitida.')
+        messages.error(request, 'TransiÃ§Ã£o nÃ£o permitida.')
         return redirect('negociacoes:negociacao_detail', pk=pk)
 
     etapa_anterior = neg.etapa
     neg.etapa = destino
     neg.save(update_fields=['etapa', 'atualizado_em'])
 
-    HistoricoNegociacao.objects.create(
-        negociacao=neg,
+    HistoricoProposta.objects.create(
+        proposta=neg,
         etapa_anterior=etapa_anterior,
         etapa_nova=destino,
         usuario=request.user,
         observacao=observacao,
     )
-    messages.success(request, f'Negociação avançada para "{destino.nome}".')
+    messages.success(request, f'NegociaÃ§Ã£o avanÃ§ada para "{destino.nome}".')
     return redirect('negociacoes:negociacao_detail', pk=pk)
 
 
-# ─── Partes ────────────────────────────────────────────────────────────────────
+# â”€â”€â”€ Partes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @login_required
 def api_conjuge_sugerido(request, pessoa_pk):
-    """Retorna o cônjuge cadastrado no perfil da pessoa."""
+    """Retorna o cÃ´njuge cadastrado no perfil da pessoa."""
     from django.http import JsonResponse
     try:
         pessoa = Pessoa.objects.select_related('conjuge').get(pk=pessoa_pk)
@@ -772,12 +760,26 @@ def api_conjuge_sugerido(request, pessoa_pk):
 
 
 @login_required
+def negociacao_change_tabela(request, pk):
+    if request.method != 'POST':
+        return redirect('negociacoes:negociacao_detail', pk=pk)
+    from apps.vendas.models import TabelaVendas as TV
+    neg      = get_object_or_404(Proposta.objects, pk=pk)
+    tabela_id = request.POST.get('tabela_id') or None
+    tabela_obj = TV.objects.filter(pk=tabela_id, empreendimento=neg.empreendimento).first() if tabela_id else None
+    neg.tabela = tabela_obj
+    neg.save(update_fields=['tabela'])
+    messages.success(request, f'Tabela de vendas {"atualizada para " + tabela_obj.nome if tabela_obj else "removida"}.')
+    return redirect('negociacoes:negociacao_detail', pk=pk)
+
+
+@login_required
 def negociacao_reset_series(request, pk):
-    """Limpa as séries propostas e copia os valores da tabela de vendas vinculada."""
+    """Limpa as sÃ©ries propostas e copia os valores da tabela de vendas vinculada."""
     if request.method != 'POST':
         return redirect('negociacoes:negociacao_detail', pk=pk)
 
-    neg = get_object_or_404(Negociacao.objects, pk=pk)
+    neg = get_object_or_404(Proposta.objects, pk=pk)
 
     if not neg.tabela_id:
         messages.error(request, 'Nenhuma tabela de vendas vinculada a esta proposta.')
@@ -785,8 +787,13 @@ def negociacao_reset_series(request, pk):
 
     from apps.vendas.models import TabelaSerie, TabelaVendasItem as TVI3
 
-    # Apaga as séries propostas existentes
-    neg.series.all().delete()
+    # Garante rodada ativa; cria se nao existir
+    neg_atual = neg.negociacao_ativa
+    if not neg_atual:
+        neg_atual = Negociacao.objects.create(proposta=neg, numero=1, status='ativa')
+
+    # Apaga as series propostas existentes da rodada
+    neg_atual.series.all().delete()
 
     unidade_ids = list(neg.unidades.values_list('unidade_id', flat=True))
     series_tabela = TabelaSerie.objects.filter(tabela_id=neg.tabela_id).order_by('tipo')
@@ -808,7 +815,7 @@ def negociacao_reset_series(request, pk):
                 valor_parcela += serie.calcular_valor_parcela(nu.unidade.valor_tabela or Decimal('0'))
 
         SerieNegociacao.objects.create(
-            negociacao=neg,
+            negociacao=neg_atual,
             tipo=serie.tipo,
             quantidade=serie.quantidade,
             valor_por_parcela=valor_parcela,
@@ -818,23 +825,22 @@ def negociacao_reset_series(request, pk):
         )
         criadas += 1
 
-    messages.success(request, f'{criadas} série(s) copiada(s) da tabela de vendas.')
+    messages.success(request, f'{criadas} serie(s) copiada(s) da tabela de vendas.')
     return redirect('negociacoes:negociacao_detail', pk=pk)
 
 
 @login_required
 def negociacao_unidade_add(request, pk):
-    from .models import NegociacaoUnidade
-    neg = get_object_or_404(Negociacao.objects, pk=pk)
+    neg = get_object_or_404(Proposta.objects, pk=pk)
     if request.method == 'POST':
         unidade_id = request.POST.get('unidade_id')
-        tabela_id  = request.POST.get('tabela_id') or None
         unidade = get_object_or_404(Unidade.objects, pk=unidade_id)
+        # Usa a tabela global da negociaÃ§Ã£o para encontrar o item
         item = None
-        if tabela_id:
-            item = TabelaVendasItem.objects.filter(tabela_id=tabela_id, unidade=unidade).first()
-        NegociacaoUnidade.objects.get_or_create(
-            negociacao=neg, unidade=unidade,
+        if neg.tabela_id:
+            item = TabelaVendasItem.objects.filter(tabela_id=neg.tabela_id, unidade=unidade).first()
+        PropostaUnidade.objects.get_or_create(
+            proposta=neg, unidade=unidade,
             defaults={'tabela_item': item},
         )
         messages.success(request, f'Unidade {unidade.numero} adicionada.')
@@ -844,38 +850,48 @@ def negociacao_unidade_add(request, pk):
 @login_required
 def negociacao_unidade_remove(request, pk, nu_pk):
     from .models import NegociacaoUnidade
-    neg = get_object_or_404(Negociacao.objects, pk=pk)
+    neg = get_object_or_404(Proposta.objects, pk=pk)
     if request.method == 'POST':
-        NegociacaoUnidade.objects.filter(pk=nu_pk, negociacao=neg).delete()
+        PropostaUnidade.objects.filter(pk=nu_pk, proposta=neg).delete()
         messages.success(request, 'Unidade removida.')
     return redirect('negociacoes:negociacao_detail', pk=pk)
 
 
+def _get_tipo_parte(empresa, slug):
+    """Busca TipoParteNegociacao por slug; cria se nÃ£o existir."""
+    obj, _ = TipoParteNegociacao.objects.get_or_create(
+        empresa=empresa, slug=slug,
+        defaults={'nome': slug.replace('_', ' ').title(), 'ordem': 99},
+    )
+    return obj
+
+
 @login_required
 def parte_add(request, pk):
-    neg = get_object_or_404(Negociacao.objects, pk=pk)
+    neg = get_object_or_404(Proposta.objects, pk=pk)
     if request.method == 'POST':
         pessoa_id = request.POST.get('pessoa_id')
-        tipo      = request.POST.get('tipo')
-        if pessoa_id and tipo:
-            pessoa = get_object_or_404(Pessoa.objects, pk=pessoa_id)
-            ordem  = neg.partes.count()
-            ParteNegociacao.objects.create(negociacao=neg, pessoa=pessoa, tipo=tipo, ordem=ordem)
-            messages.success(request, f'{dict(ParteNegociacao.TIPO_CHOICES).get(tipo, tipo)} adicionado.')
+        tipo_id   = request.POST.get('tipo')
+        if pessoa_id and tipo_id:
+            pessoa    = get_object_or_404(Pessoa.objects, pk=pessoa_id)
+            tipo_obj  = get_object_or_404(TipoParteNegociacao, pk=tipo_id)
+            ordem     = neg.partes.count()
+            ParteProposta.objects.create(proposta=neg, pessoa=pessoa, tipo=tipo_obj, ordem=ordem)
+            messages.success(request, f'{tipo_obj.nome} adicionado.')
     return redirect('negociacoes:negociacao_detail', pk=pk)
 
 
 @login_required
 def parte_remove(request, pk, parte_pk):
-    neg   = get_object_or_404(Negociacao.objects, pk=pk)
-    parte = get_object_or_404(ParteNegociacao, pk=parte_pk, negociacao=neg)
+    neg   = get_object_or_404(Proposta.objects, pk=pk)
+    parte = get_object_or_404(ParteProposta, pk=parte_pk, proposta=neg)
     if request.method == 'POST':
         parte.delete()
         messages.success(request, 'Parte removida.')
     return redirect('negociacoes:negociacao_detail', pk=pk)
 
 
-# ─── Séries da proposta ────────────────────────────────────────────────────────
+# â”€â”€â”€ SÃ©ries da proposta â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _parse_decimal(raw):
     try:
@@ -887,10 +903,13 @@ def _parse_decimal(raw):
 
 @login_required
 def serie_add(request, pk):
-    neg = get_object_or_404(Negociacao.objects, pk=pk)
+    neg = get_object_or_404(Proposta.objects, pk=pk)
     if request.method == 'POST':
+        neg_atual = neg.negociacao_ativa
+        if not neg_atual:
+            neg_atual = Negociacao.objects.create(proposta=neg, numero=1, status='ativa')
         SerieNegociacao.objects.create(
-            negociacao=neg,
+            negociacao=neg_atual,
             tipo=request.POST.get('tipo', 'outro'),
             descricao=request.POST.get('descricao', ''),
             quantidade=int(request.POST.get('quantidade') or 1),
@@ -898,14 +917,18 @@ def serie_add(request, pk):
             data_primeiro_vencimento=request.POST.get('data_primeiro_vencimento') or None,
             periodicidade=request.POST.get('periodicidade', ''),
         )
-        messages.success(request, 'Série adicionada.')
+        messages.success(request, 'Serie adicionada.')
     return redirect('negociacoes:negociacao_detail', pk=pk)
 
 
 @login_required
 def serie_update(request, pk, serie_pk):
-    neg   = get_object_or_404(Negociacao.objects, pk=pk)
-    serie = get_object_or_404(SerieNegociacao, pk=serie_pk, negociacao=neg)
+    neg   = get_object_or_404(Proposta.objects, pk=pk)
+    neg_atual = neg.negociacao_ativa
+    serie = get_object_or_404(SerieNegociacao, pk=serie_pk, negociacao=neg_atual) if neg_atual else None
+    if not serie:
+        messages.error(request, 'Serie nao encontrada.')
+        return redirect('negociacoes:negociacao_detail', pk=pk)
 
     if request.method == 'POST':
         serie.descricao           = request.POST.get('descricao', '').strip()
@@ -921,7 +944,7 @@ def serie_update(request, pk, serie_pk):
         serie.data_primeiro_vencimento = request.POST.get('data_primeiro_vencimento') or None
         serie.periodicidade       = request.POST.get('periodicidade', '') if serie.quantidade > 1 else ''
         serie.save()
-        messages.success(request, f'Série "{serie.get_tipo_display()}" atualizada.')
+        messages.success(request, f'SÃ©rie "{serie.get_tipo_display()}" atualizada.')
         return redirect('negociacoes:negociacao_detail', pk=pk)
 
     return render(request, 'negociacoes/serie_form.html', {
@@ -933,15 +956,70 @@ def serie_update(request, pk, serie_pk):
 
 @login_required
 def serie_remove(request, pk, serie_pk):
-    neg   = get_object_or_404(Negociacao.objects, pk=pk)
-    serie = get_object_or_404(SerieNegociacao, pk=serie_pk, negociacao=neg)
-    if request.method == 'POST':
+    neg   = get_object_or_404(Proposta.objects, pk=pk)
+    neg_atual = neg.negociacao_ativa
+    serie = get_object_or_404(SerieNegociacao, pk=serie_pk, negociacao=neg_atual) if neg_atual else None
+    if request.method == 'POST' and serie:
         serie.delete()
-        messages.success(request, 'Série removida.')
+        messages.success(request, 'Serie removida.')
     return redirect('negociacoes:negociacao_detail', pk=pk)
 
 
-# ─── Config: Etapas do Workflow ────────────────────────────────────────────────
+# â”€â”€â”€ Config: Tipos de Parte â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+class TipoParteListView(LoginRequiredMixin, EmpresaQuerysetMixin, ListView):
+    model = TipoParteNegociacao
+    template_name = 'negociacoes/config_tipos_parte.html'
+    context_object_name = 'tipos'
+
+
+class TipoParteForm(django_forms.ModelForm):
+    class Meta:
+        model = TipoParteNegociacao
+        fields = ['nome', 'ordem']
+
+
+class TipoParteCreateView(LoginRequiredMixin, CreateView):
+    model = TipoParteNegociacao
+    form_class = TipoParteForm
+    template_name = 'negociacoes/config_tipo_parte_form.html'
+    success_url = reverse_lazy('negociacoes:tipo_parte_list')
+
+    def get_form(self, form_class=None):
+        return _style_form(super().get_form(form_class))
+
+    def form_valid(self, form):
+        form.instance.empresa = _get_empresa(self.request)
+        messages.success(self.request, 'Tipo criado.')
+        return super().form_valid(form)
+
+
+class TipoParteUpdateView(LoginRequiredMixin, UpdateView):
+    model = TipoParteNegociacao
+    form_class = TipoParteForm
+    template_name = 'negociacoes/config_tipo_parte_form.html'
+    success_url = reverse_lazy('negociacoes:tipo_parte_list')
+
+    def get_form(self, form_class=None):
+        return _style_form(super().get_form(form_class))
+
+    def form_valid(self, form):
+        messages.success(self.request, 'Tipo atualizado.')
+        return super().form_valid(form)
+
+
+class TipoParteDeleteView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        obj = get_object_or_404(TipoParteNegociacao, pk=pk)
+        if obj.partes.exists():
+            messages.error(request, 'NÃ£o Ã© possÃ­vel excluir um tipo em uso.')
+        else:
+            obj.delete()
+            messages.success(request, f'Tipo "{obj.nome}" excluÃ­do.')
+        return redirect('negociacoes:tipo_parte_list')
+
+
+# â”€â”€â”€ Config: Etapas do Workflow â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class EtapaWorkflowListView(LoginRequiredMixin, EmpresaQuerysetMixin, ListView):
     model = EtapaWorkflow
@@ -989,14 +1067,14 @@ class EtapaWorkflowDeleteView(LoginRequiredMixin, View):
     def post(self, request, pk):
         etapa = get_object_or_404(EtapaWorkflow, pk=pk)
         if etapa.negociacoes.exists():
-            messages.error(request, 'Não é possível excluir uma etapa com negociações.')
+            messages.error(request, 'NÃ£o Ã© possÃ­vel excluir uma etapa com negociaÃ§Ãµes.')
         else:
             etapa.delete()
-            messages.success(request, 'Etapa excluída.')
+            messages.success(request, 'Etapa excluÃ­da.')
         return redirect('negociacoes:etapa_list')
 
 
-# ─── Config: Transições ────────────────────────────────────────────────────────
+# â”€â”€â”€ Config: TransiÃ§Ãµes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @login_required
 def reordenar_etapas(request):

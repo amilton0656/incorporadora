@@ -75,12 +75,24 @@
     <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">Empreendimento</p>
     <p class="text-sm font-semibold text-gray-800">{{ neg.empreendimento.nome }}</p>
   </div>
-  {% if neg.tabela %}
   <div>
-    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">Tabela de vendas</p>
-    <p class="text-sm font-semibold text-gray-800">{{ neg.tabela.nome }}</p>
+    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Tabela de vendas</p>
+    {% if neg.status == 'ativa' %}
+    <form method="post" action="{% url 'negociacoes:negociacao_change_tabela' neg.pk %}" class="flex items-center gap-2">
+      {% csrf_token %}
+      <select name="tabela_id"
+              class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand transition">
+        <option value="">— Sem tabela —</option>
+        {% for t in tabelas_disponiveis %}
+        <option value="{{ t.pk }}" {% if neg.tabela_id == t.pk %}selected{% endif %}>{{ t.nome }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="text-xs text-brand hover:underline font-medium">Alterar</button>
+    </form>
+    {% else %}
+    <p class="text-sm font-semibold text-gray-800">{{ neg.tabela.nome|default:'—' }}</p>
+    {% endif %}
   </div>
-  {% endif %}
   <div>
     <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">Data</p>
     <p class="text-sm font-semibold text-gray-800">{{ neg.data_abertura|date:'d/m/Y' }}</p>
@@ -166,12 +178,6 @@
       <option value="{{ u.pk }}">{{ u.bloco.nome }} / {{ u.numero }}</option>
       {% endfor %}
     </select>
-    <select name="tabela_id" class="flex-1 min-w-40 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand transition">
-      <option value="">Sem tabela</option>
-      {% for t in tabelas_disponiveis %}
-      <option value="{{ t.pk }}">{{ t.nome }}</option>
-      {% endfor %}
-    </select>
     <button type="submit" class="px-4 py-2 bg-brand hover:bg-brand-dark text-white rounded-lg text-sm font-medium transition">
       Adicionar unidade
     </button>
@@ -190,14 +196,14 @@
       <li class="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
         <div>
           <p class="text-sm font-medium text-gray-800">{{ parte.pessoa.nome_exibicao }}</p>
-          <p class="text-xs text-gray-400">{{ parte.get_tipo_display }}</p>
-          {% if parte.pessoa.tipo == 'pf' and parte.pessoa.conjuge and parte.tipo in "proponente,segundo_proponente" %}
+          <p class="text-xs text-gray-400">{{ parte.tipo.nome }}</p>
+          {% if parte.pessoa.tipo == 'pf' and parte.pessoa.conjuge and parte.tipo.slug == 'proponente' or parte.pessoa.tipo == 'pf' and parte.pessoa.conjuge and parte.tipo.slug == 'segundo_proponente' %}
           <p class="text-xs text-gray-400 mt-0.5">
             Cônjuge: <a href="{% url 'pessoas:pessoa_detail' parte.pessoa.conjuge.pk %}"
                         class="text-brand hover:underline">{{ parte.pessoa.conjuge.nome_exibicao }}</a>
           </p>
           {% endif %}
-          {% if parte.pessoa.tipo == 'pj' %}
+          {% if parte.pessoa.tipo == 'pj' and parte.tipo.slug != 'corretor' and parte.tipo.slug != 'imobiliaria' %}
           {% for rep in parte.pessoa.representantes_legais.all %}
           <p class="text-xs text-gray-400 mt-0.5">
             Rep.: <a href="{% url 'pessoas:pessoa_detail' rep.pessoa_fisica.pk %}"
@@ -226,8 +232,9 @@
     <form method="post" action="{% url 'negociacoes:parte_add' neg.pk %}" class="space-y-2">
       {% csrf_token %}
       <select name="tipo" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand transition">
-        {% for valor, label in tipos_parte %}
-        <option value="{{ valor }}">{{ label }}</option>
+        <option value="">Tipo…</option>
+        {% for tp in tipos_parte %}
+        <option value="{{ tp.pk }}">{{ tp.nome }}</option>
         {% endfor %}
       </select>
       <select name="pessoa_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand transition">
