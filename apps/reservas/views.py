@@ -91,6 +91,63 @@ def _gerar_calendario(series):
     return parcelas
 
 
+def _get_tabela_context(neg):
+    """Calcula séries e total da Tabela de Vendas para uma reserva."""
+    from apps.vendas.models import TabelaVendasItem as TVI, TabelaSerie
+    tabela_por_tipo  = {}
+    tabela_label     = {}
+    tabela_serie_info = {}
+
+    if neg.tabela_id:
+        unidade_ids = list(neg.unidades.values_list('unidade_id', flat=True))
+        itens_encontrados = set()
+        for item in TVI.objects.filter(
+            tabela_id=neg.tabela_id, unidade_id__in=unidade_ids
+        ).prefetch_related('valores__serie'):
+            itens_encontrados.add(item.unidade_id)
+            for v in item.valores.all():
+                tipo = v.serie.tipo
+                tabela_por_tipo[tipo] = tabela_por_tipo.get(tipo, Decimal('0')) + v.valor_total
+                if tipo not in tabela_label:
+                    tabela_label[tipo] = v.serie.get_tipo_display()
+                    tabela_serie_info[tipo] = {
+                        'quantidade': v.serie.quantidade,
+                        'periodicidade': v.serie.get_periodicidade_display() if v.serie.periodicidade else '',
+                        'data_primeiro_vencimento': v.serie.data_primeiro_vencimento,
+                    }
+
+        series_tabela = list(TabelaSerie.objects.filter(tabela_id=neg.tabela_id))
+        if series_tabela:
+            for nu in neg.unidades.select_related('unidade').all():
+                if nu.unidade_id in itens_encontrados:
+                    continue
+                valor_base = nu.unidade.valor_tabela or Decimal('0')
+                for serie in series_tabela:
+                    tipo = serie.tipo
+                    valor_serie = (valor_base * (serie.percentual or Decimal('0')) / Decimal('100'))
+                    tabela_por_tipo[tipo] = tabela_por_tipo.get(tipo, Decimal('0')) + valor_serie
+                    if tipo not in tabela_label:
+                        tabela_label[tipo] = serie.get_tipo_display()
+                        tabela_serie_info[tipo] = {
+                            'quantidade': serie.quantidade,
+                            'periodicidade': serie.get_periodicidade_display() if serie.periodicidade else '',
+                            'data_primeiro_vencimento': serie.data_primeiro_vencimento,
+                        }
+
+    TIPO_ORDEM = ['ato', 'parcelas_mensais', 'reforcos', 'chaves', 'financiamento', 'dacao', 'outro']
+    tabela_series_resumo = [
+        {'tipo': tipo, 'label': tabela_label[tipo],
+         'total': tabela_por_tipo[tipo], 'info': tabela_serie_info[tipo],
+         'valor_parcela': tabela_por_tipo[tipo] / tabela_serie_info[tipo]['quantidade']
+                          if tabela_serie_info[tipo]['quantidade'] else Decimal('0')}
+        for tipo in TIPO_ORDEM if tipo in tabela_por_tipo
+    ]
+    return {
+        'tabela_series_resumo': tabela_series_resumo,
+        'tabela_total': sum(tabela_por_tipo.values(), Decimal('0')),
+    }
+
+
 def _gerar_resumo(proposta, negociacao_atual, series):
     """Compara valores da tabela vs proposta por tipo de serie.
     proposta = Proposta; negociacao_atual = Negociacao (rodada) ativa; series = suas series.
@@ -583,7 +640,7 @@ class NegociacaoCreateView(LoginRequiredMixin, View):
 
 class NegociacaoDetailView(LoginRequiredMixin, DetailView):
     model = Reserva
-    template_name = 'reservas/proposta_detail.html'
+    template_name = 'reservas/negociacao_detail.html'
     context_object_name = 'neg'
 
     def get_object(self):
@@ -610,16 +667,19 @@ class NegociacaoDetailView(LoginRequiredMixin, DetailView):
             'unidade__complementares__designacoes',
         ).all()
         # Proposta selecionada: via ?proposta=pk ou a ativa mais recente
-        todas_propostas = neg.propostas.order_by('numero')
+        todas_propostas = neg.propostas.filter(tipo=Proposta.TIPO_PROPOSTA).order_by('numero')
         proposta_id = self.request.GET.get('proposta')
         if proposta_id:
             neg_atual = todas_propostas.filter(pk=proposta_id).first() or neg.proposta_ativa
         else:
             neg_atual = neg.proposta_ativa
+        contraproposta = neg_atual.contropropostas.first() if neg_atual else None
         ctx['neg_atual']       = neg_atual
         ctx['todas_propostas'] = todas_propostas
+        ctx['contraproposta']  = contraproposta
         series = list(neg_atual.series.all()) if neg_atual else []
         ctx['series']    = series
+        ctx['cp_series'] = list(contraproposta.series.all()) if contraproposta else []
         ctx['historico'] = neg.historico.select_related('etapa_anterior', 'etapa_nova', 'usuario').all()
         ctx['destinos']  = neg.etapa.destinos if neg.status == Reserva.STATUS_ATIVA else []
 
@@ -629,57 +689,7 @@ class NegociacaoDetailView(LoginRequiredMixin, DetailView):
         # Resumo Tabela Ã— Proposto Ã— DiferenÃ§a
         ctx['resumo'] = _gerar_resumo(neg, neg_atual, series)
 
-        # Series da tabela: usa neg.tabela (global) e soma por unidade
-        from apps.vendas.models import TabelaVendasItem as TVI
-        tabela_por_tipo = {}
-        tabela_label    = {}
-        tabela_serie_info = {}
-
-        if neg.tabela_id:
-            from apps.vendas.models import TabelaSerie
-            unidade_ids = list(neg.unidades.values_list('unidade_id', flat=True))
-
-            # Tenta via TabelaVendasItem (unidade estÃ¡ na tabela)
-            itens_encontrados = set()
-            for item in TVI.objects.filter(
-                tabela_id=neg.tabela_id, unidade_id__in=unidade_ids
-            ).prefetch_related('valores__serie'):
-                itens_encontrados.add(item.unidade_id)
-                for v in item.valores.all():
-                    tipo = v.serie.tipo
-                    tabela_por_tipo[tipo] = tabela_por_tipo.get(tipo, Decimal('0')) + v.valor_total
-                    if tipo not in tabela_label:
-                        tabela_label[tipo] = v.serie.get_tipo_display()
-                        tabela_serie_info[tipo] = {
-                            'quantidade': v.serie.quantidade,
-                            'periodicidade': v.serie.get_periodicidade_display() if v.serie.periodicidade else '',
-                        }
-
-            # Fallback: calcula via valor_tabela Ã— percentual para unidades nÃ£o encontradas
-            series = list(TabelaSerie.objects.filter(tabela_id=neg.tabela_id))
-            if series:
-                for nu in neg.unidades.select_related('unidade').all():
-                    if nu.unidade_id in itens_encontrados:
-                        continue  # jÃ¡ calculado via item
-                    valor_base = nu.unidade.valor_tabela or Decimal('0')
-                    for serie in series:
-                        tipo = serie.tipo
-                        valor_serie = (valor_base * (serie.percentual or Decimal('0')) / Decimal('100'))
-                        tabela_por_tipo[tipo] = tabela_por_tipo.get(tipo, Decimal('0')) + valor_serie
-                        if tipo not in tabela_label:
-                            tabela_label[tipo] = serie.get_tipo_display()
-                            tabela_serie_info[tipo] = {
-                                'quantidade': serie.quantidade,
-                                'periodicidade': serie.get_periodicidade_display() if serie.periodicidade else '',
-                            }
-
-        TIPO_ORDEM = ['ato', 'parcelas_mensais', 'reforcos', 'chaves', 'financiamento', 'dacao', 'outro']
-        ctx['tabela_series_resumo'] = [
-            {'tipo': tipo, 'label': tabela_label[tipo],
-             'total': tabela_por_tipo[tipo], 'info': tabela_serie_info[tipo]}
-            for tipo in TIPO_ORDEM if tipo in tabela_por_tipo
-        ]
-        ctx['tabela_total'] = sum(tabela_por_tipo.values(), Decimal('0'))
+        ctx.update(_get_tabela_context(neg))
 
         # Pessoas disponíveis para adicionar como parte
         empresa = _get_empresa(self.request)
@@ -812,19 +822,92 @@ class NegociacaoUpdateView(LoginRequiredMixin, View):
 
 @login_required
 def proposta_valores_partial(request, pk, proposta_pk):
-    """Retorna só o bloco de séries + calendário de uma proposta (para HTMX)."""
+    """Retorna o bloco financeiro completo de uma proposta (para fetch)."""
     neg = get_object_or_404(Reserva.objects, pk=pk)
-    neg_atual = get_object_or_404(Proposta, pk=proposta_pk, reserva=neg)
+    neg_atual = get_object_or_404(Proposta, pk=proposta_pk, reserva=neg, tipo=Proposta.TIPO_PROPOSTA)
+    contraproposta = neg_atual.contropropostas.first()
     series = list(neg_atual.series.all())
-    return render(request, 'reservas/_proposta_valores.html', {
+    ctx = {
         'neg': neg,
         'neg_atual': neg_atual,
+        'contraproposta': contraproposta,
+        'cp_series': list(contraproposta.series.all()) if contraproposta else [],
         'series': series,
         'resumo': _gerar_resumo(neg, neg_atual, series),
         'calendario': _gerar_calendario(series),
         'tipos_serie': SerieProposta.TIPO_CHOICES,
         'periodicidades': SerieProposta.PERIODICIDADE_CHOICES,
-    })
+    }
+    ctx.update(_get_tabela_context(neg))
+    return render(request, 'reservas/_proposta_valores.html', ctx)
+
+
+@login_required
+def proposta_obs_update(request, pk, proposta_pk):
+    neg = get_object_or_404(Reserva.objects, pk=pk)
+    proposta = get_object_or_404(Proposta, pk=proposta_pk, reserva=neg)
+    if request.method == 'POST' and neg.status == 'ativa':
+        proposta.observacoes = request.POST.get('observacoes', '').strip()
+        proposta.save()
+    return redirect('reservas:negociacao_detail', pk=pk)
+
+
+@login_required
+def contraproposta_create(request, pk, proposta_pk):
+    """Cria uma Contraproposta vinculada a uma Proposta, copiando suas séries."""
+    neg = get_object_or_404(Reserva.objects, pk=pk)
+    proposta = get_object_or_404(Proposta, pk=proposta_pk, reserva=neg, tipo=Proposta.TIPO_PROPOSTA)
+    if request.method == 'POST' and neg.status == 'ativa':
+        if not proposta.contropropostas.exists():
+            cp = Proposta.objects.create(
+                reserva=neg,
+                proposta_pai=proposta,
+                tipo=Proposta.TIPO_CONTRAPROPOSTA,
+                status=Proposta.STATUS_ATIVA,
+            )
+            SerieProposta.objects.bulk_create([
+                SerieProposta(
+                    proposta=cp,
+                    tipo=s.tipo,
+                    descricao=s.descricao,
+                    quantidade=s.quantidade,
+                    valor_por_parcela=s.valor_por_parcela,
+                    data_primeiro_vencimento=s.data_primeiro_vencimento,
+                    periodicidade=s.periodicidade,
+                    serie_ref=s.serie_ref,
+                )
+                for s in proposta.series.all()
+            ])
+    return redirect('reservas:negociacao_detail', pk=pk)
+
+
+@login_required
+def contraproposta_delete(request, pk, cp_pk):
+    """Exclui uma Contraproposta e suas séries."""
+    neg = get_object_or_404(Reserva.objects, pk=pk)
+    cp  = get_object_or_404(Proposta, pk=cp_pk, reserva=neg, tipo=Proposta.TIPO_CONTRAPROPOSTA)
+    if request.method == 'POST' and neg.status == 'ativa':
+        cp.delete()
+    return redirect('reservas:negociacao_detail', pk=pk)
+
+
+@login_required
+def contraproposta_serie_add(request, pk, cp_pk):
+    """Adiciona uma série a uma Contraproposta."""
+    neg = get_object_or_404(Reserva.objects, pk=pk)
+    cp  = get_object_or_404(Proposta, pk=cp_pk, reserva=neg, tipo=Proposta.TIPO_CONTRAPROPOSTA)
+    if request.method == 'POST' and neg.status == 'ativa':
+        SerieProposta.objects.create(
+            proposta=cp,
+            tipo=request.POST.get('tipo', 'outro'),
+            descricao=request.POST.get('descricao', ''),
+            quantidade=int(request.POST.get('quantidade') or 1),
+            valor_por_parcela=_parse_decimal(request.POST.get('valor_por_parcela', '0')),
+            data_primeiro_vencimento=request.POST.get('data_primeiro_vencimento') or None,
+            periodicidade=request.POST.get('periodicidade', ''),
+        )
+        messages.success(request, 'Série adicionada à contraproposta.')
+    return redirect('reservas:negociacao_detail', pk=pk)
 
 
 @login_required
@@ -844,6 +927,63 @@ def alterar_etapa(request, pk):
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({'ok': True, 'etapa': etapa.nome, 'cor': etapa.cor})
         messages.success(request, f'Etapa alterada para “{etapa.nome}”.')
+    return redirect('reservas:negociacao_detail', pk=pk)
+
+
+# ─── Ações de aprovação / reprovação / acordo ────────────────────────────────
+
+def _avancar_etapa_auto(neg, user, observacao=''):
+    """Avança para o primeiro destino permitido a partir da etapa atual."""
+    destino = neg.etapa.destinos.first()
+    if destino:
+        etapa_anterior = neg.etapa
+        neg.etapa = destino
+        neg.save(update_fields=['etapa', 'atualizado_em'])
+        HistoricoProposta.objects.create(
+            reserva=neg, etapa_anterior=etapa_anterior,
+            etapa_nova=destino, usuario=user, observacao=observacao,
+        )
+    return destino
+
+
+@login_required
+def proposta_aprovar(request, pk, proposta_pk):
+    neg = get_object_or_404(Reserva.objects, pk=pk)
+    proposta = get_object_or_404(Proposta, pk=proposta_pk, reserva=neg, tipo=Proposta.TIPO_PROPOSTA)
+    if request.method == 'POST' and neg.status == 'ativa' and proposta.status == Proposta.STATUS_ATIVA:
+        proposta.status = Proposta.STATUS_APROVADA
+        proposta.save(update_fields=['status'])
+        destino = _avancar_etapa_auto(neg, request.user, observacao='Proposta aprovada.')
+        if destino:
+            messages.success(request, f'Proposta aprovada. Etapa avançada para "{destino.nome}".')
+        else:
+            messages.success(request, 'Proposta aprovada.')
+    return redirect('reservas:negociacao_detail', pk=pk)
+
+
+@login_required
+def proposta_reprovar(request, pk, proposta_pk):
+    neg = get_object_or_404(Reserva.objects, pk=pk)
+    proposta = get_object_or_404(Proposta, pk=proposta_pk, reserva=neg, tipo=Proposta.TIPO_PROPOSTA)
+    if request.method == 'POST' and neg.status == 'ativa' and proposta.status == Proposta.STATUS_ATIVA:
+        proposta.status = Proposta.STATUS_RECUSADA
+        proposta.save(update_fields=['status'])
+        messages.info(request, 'Proposta reprovada.')
+    return redirect('reservas:negociacao_detail', pk=pk)
+
+
+@login_required
+def contraproposta_acordo(request, pk, cp_pk):
+    neg = get_object_or_404(Reserva.objects, pk=pk)
+    cp  = get_object_or_404(Proposta, pk=cp_pk, reserva=neg, tipo=Proposta.TIPO_CONTRAPROPOSTA)
+    if request.method == 'POST' and neg.status == 'ativa' and cp.status == Proposta.STATUS_ATIVA:
+        cp.status = Proposta.STATUS_APROVADA
+        cp.save(update_fields=['status'])
+        destino = _avancar_etapa_auto(neg, request.user, observacao='Acordo na contraproposta.')
+        if destino:
+            messages.success(request, f'Acordo fechado. Etapa avançada para "{destino.nome}".')
+        else:
+            messages.success(request, 'Acordo registrado.')
     return redirect('reservas:negociacao_detail', pk=pk)
 
 
@@ -1135,14 +1275,19 @@ def serie_add(request, pk):
 
 @login_required
 def serie_update(request, pk, serie_pk):
-    neg      = get_object_or_404(Reserva.objects, pk=pk)
-    neg_atual = neg.proposta_ativa
-    serie    = get_object_or_404(SerieProposta, pk=serie_pk, proposta=neg_atual) if neg_atual else None
-    is_ajax  = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    neg   = get_object_or_404(Reserva.objects, pk=pk)
+    serie = get_object_or_404(SerieProposta, pk=serie_pk, proposta__reserva=neg)
+    proposta = serie.proposta
 
-    if not serie:
-        messages.error(request, 'Serie nao encontrada.')
-        return redirect('reservas:negociacao_detail', pk=pk)
+    # determina proposta principal e contraproposta para montar o parcial
+    if proposta.tipo == Proposta.TIPO_CONTRAPROPOSTA:
+        neg_atual      = proposta.proposta_pai
+        contraproposta = proposta
+    else:
+        neg_atual      = proposta
+        contraproposta = proposta.contropropostas.first()
+
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
     if request.method == 'POST':
         serie.descricao = request.POST.get('descricao', '').strip()
@@ -1159,17 +1304,20 @@ def serie_update(request, pk, serie_pk):
         serie.save()
 
         if is_ajax:
-            # Devolve o bloco de valores atualizado para o fetch substituir #bloco-valores
-            series = list(neg_atual.series.all())
-            return render(request, 'reservas/_proposta_valores.html', {
+            series = list(neg_atual.series.all()) if neg_atual else []
+            ctx = {
                 'neg': neg,
                 'neg_atual': neg_atual,
+                'contraproposta': contraproposta,
+                'cp_series': list(contraproposta.series.all()) if contraproposta else [],
                 'series': series,
                 'resumo': _gerar_resumo(neg, neg_atual, series),
                 'calendario': _gerar_calendario(series),
                 'tipos_serie': SerieProposta.TIPO_CHOICES,
                 'periodicidades': SerieProposta.PERIODICIDADE_CHOICES,
-            })
+            }
+            ctx.update(_get_tabela_context(neg))
+            return render(request, 'reservas/_proposta_valores.html', ctx)
         messages.success(request, f'Série "{serie.get_tipo_display()}" atualizada.')
         return redirect('reservas:negociacao_detail', pk=pk)
 
@@ -1189,9 +1337,8 @@ def serie_update(request, pk, serie_pk):
 @login_required
 def serie_remove(request, pk, serie_pk):
     neg   = get_object_or_404(Reserva.objects, pk=pk)
-    neg_atual = neg.proposta_ativa
-    serie = get_object_or_404(SerieProposta, pk=serie_pk, proposta=neg_atual) if neg_atual else None
-    if request.method == 'POST' and serie:
+    serie = get_object_or_404(SerieProposta, pk=serie_pk, proposta__reserva=neg)
+    if request.method == 'POST':
         serie.delete()
         messages.success(request, 'Serie removida.')
     return redirect('reservas:negociacao_detail', pk=pk)

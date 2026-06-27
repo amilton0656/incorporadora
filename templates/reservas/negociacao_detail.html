@@ -3,7 +3,7 @@
 {% block title %}Reserva #{{ neg.numero }}{% endblock %}
 
 {% block breadcrumb %}
-<nav class="text-sm text-gray-400 mb-6">
+<nav class="text-sm text-gray-400 mb-4">
   <a href="{% url 'intranet:welcome' %}" class="hover:text-brand transition">Início</a>
   <span class="mx-2">/</span>
   <a href="{% url 'reservas:kanban' %}" class="hover:text-brand transition">Reservas</a>
@@ -14,593 +14,349 @@
 
 {% block inner_content %}
 
-<!-- Cabeçalho -->
-<div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+{# ── CABEÇALHO ──────────────────────────────────────────────────── #}
+<div class="flex flex-wrap items-start justify-between gap-3 mb-4">
   <div>
-    <div class="flex items-center gap-3 mb-1">
-      <h1 class="text-2xl font-semibold text-gray-800">Reserva #{{ neg.numero }}</h1>
+    <div class="flex flex-wrap items-center gap-2 mb-1">
+      <h1 class="text-xl font-bold text-gray-900">Reserva #{{ neg.numero }}</h1>
       <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold text-white"
             style="background-color: {{ neg.etapa.cor }}">{{ neg.etapa.nome }}</span>
       {% if neg.status != 'ativa' %}
       <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">{{ neg.get_status_display }}</span>
+      {% else %}
+      <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">● Ativa</span>
       {% endif %}
     </div>
-    <p class="text-gray-400 text-sm">{{ neg.unidade }} — {{ neg.empreendimento.nome }}</p>
-  </div>
-  <div class="flex flex-wrap gap-2">
-    {% if not neg.deletado %}
-    <a href="{% url 'reservas:negociacao_update' neg.pk %}"
-       class="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-gray-700">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-      Editar
-    </a>
-    <a href="{% url 'reservas:negociacao_delete' neg.pk %}"
-       class="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg transition">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-      Excluir
-    </a>
-    {% endif %}
-  </div>
-</div>
-
-<!-- Avanço de etapa -->
-{% if destinos and neg.status == 'ativa' %}
-<div class="bg-white border border-gray-200 rounded-xl p-5 mb-6">
-  <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">Avançar etapa</h2>
-  <form method="post" action="{% url 'reservas:avancar_etapa' neg.pk %}" class="flex flex-wrap gap-3 items-end">
-    {% csrf_token %}
-    <div class="flex-1 min-w-48">
-      <label class="block text-xs text-gray-500 mb-1">Próxima etapa</label>
-      <select name="etapa_destino" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand transition">
-        {% for d in destinos %}
-        <option value="{{ d.pk }}">{{ d.nome }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="flex-1 min-w-48">
-      <label class="block text-xs text-gray-500 mb-1">Observação (opcional)</label>
-      <input type="text" name="observacao" placeholder="Ex: Documentação enviada"
-             class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand transition">
-    </div>
-    <button type="submit" class="px-5 py-2 bg-brand hover:bg-brand-dark text-white rounded-lg text-sm font-semibold transition">
-      Avançar
-    </button>
-  </form>
-</div>
-{% endif %}
-
-<!-- Identificação da proposta -->
-<div class="bg-white border border-gray-200 rounded-xl px-5 py-4 mb-6 flex flex-wrap items-center gap-x-8 gap-y-2">
-  {% if neg_atual %}
-  <div>
-    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">Negociação</p>
-    <p class="text-sm font-semibold text-brand">Rodada #{{ neg_atual.numero }}
-      <span class="ml-1 px-1.5 py-0.5 rounded text-xs font-normal
-        {% if neg_atual.status == 'ativa' %}bg-green-100 text-green-700
-        {% elif neg_atual.status == 'aprovada' %}bg-blue-100 text-blue-700
-        {% else %}bg-red-100 text-red-600{% endif %}">
-        {{ neg_atual.get_status_display }}
-      </span>
+    <p class="text-sm text-gray-500">
+      {{ neg.empreendimento.nome }}
+      {% if neg_unidades %} · {% for nu in neg_unidades %}{{ nu.unidade.numero }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}
     </p>
   </div>
-  {% endif %}
-  <div>
-    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">Empreendimento</p>
-    <p class="text-sm font-semibold text-gray-800">{{ neg.empreendimento.nome }}</p>
-  </div>
-  <div>
-    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Tabela de vendas</p>
-    {% if neg.status == 'ativa' %}
-    <form method="post" action="{% url 'reservas:negociacao_change_tabela' neg.pk %}" class="flex items-center gap-2">
+  <div class="flex flex-wrap items-center gap-2">
+    {% if destinos and neg.status == 'ativa' %}
+    <form method="post" action="{% url 'reservas:avancar_etapa' neg.pk %}" class="flex items-center gap-2">
       {% csrf_token %}
-      <select name="tabela_id"
-              class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand transition">
-        <option value="">— Sem tabela —</option>
-        {% for t in tabelas_disponiveis %}
-        <option value="{{ t.pk }}" {% if neg.tabela_id == t.pk %}selected{% endif %}>{{ t.nome }}</option>
-        {% endfor %}
+      <select name="etapa_destino" class="px-3 py-1.5 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-brand transition">
+        {% for d in destinos %}<option value="{{ d.pk }}">{{ d.nome }}</option>{% endfor %}
       </select>
-      <button type="submit" class="text-xs text-brand hover:underline font-medium">Alterar</button>
+      <input type="text" name="observacao" placeholder="Obs. (opcional)" class="px-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-brand transition w-36 hidden sm:block">
+      <button type="submit" class="px-3 py-1.5 bg-brand hover:bg-brand-dark text-white rounded-lg text-xs font-semibold transition whitespace-nowrap">Avançar etapa →</button>
     </form>
-    {% else %}
-    <p class="text-sm font-semibold text-gray-800">{{ neg.tabela.nome|default:'—' }}</p>
+    {% endif %}
+    {% if not neg.deletado %}
+    <a href="{% url 'reservas:negociacao_update' neg.pk %}"
+       class="inline-flex items-center gap-1 text-xs font-medium px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-gray-600">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+      Editar
+    </a>
     {% endif %}
   </div>
-  <div>
-    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">Data</p>
-    <p class="text-sm font-semibold text-gray-800">{{ neg.data_abertura|date:'d/m/Y' }}</p>
-  </div>
-  {% if neg_atual and neg_atual.desconto_percentual %}
-  <div>
-    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">Desconto</p>
-    <p class="text-sm font-semibold text-gray-800">{{ neg_atual.desconto_percentual }}%</p>
-  </div>
-  {% endif %}
-  {% if neg.observacoes %}
-  <div class="w-full border-t border-gray-100 pt-3 mt-1">
-    <p class="text-xs text-gray-500 font-medium mb-1">Observações</p>
-    <p class="text-sm text-gray-600">{{ neg.observacoes }}</p>
-  </div>
-  {% endif %}
 </div>
 
-<!-- Unidades da negociação -->
-<div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
-  <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">Unidades</h2>
+{# ── TABS MOBILE ─────────────────────────────────────────────────── #}
+<div class="flex border-b border-gray-200 mb-4 lg:hidden">
+  <button onclick="trocarTab('neg')" id="btn-neg"
+          class="flex-1 text-xs font-semibold py-2.5 text-center border-b-2 border-indigo-600 text-indigo-600 transition">
+    Negociação
+  </button>
+  <button onclick="trocarTab('det')" id="btn-det"
+          class="flex-1 text-xs font-semibold py-2.5 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition">
+    Detalhes
+  </button>
+</div>
 
-  {% if neg_unidades %}
-  <div class="overflow-x-auto mb-4">
-    <table class="w-full text-xs">
-      <thead class="bg-gray-50 border-b border-gray-200">
-        <tr>
-          <th class="text-left px-3 py-2 font-semibold text-gray-500 uppercase">Unidade</th>
-          <th class="text-left px-3 py-2 font-semibold text-gray-500 uppercase">Bloco</th>
-          <th class="text-left px-3 py-2 font-semibold text-gray-500 uppercase">Garagens</th>
-          <th class="text-left px-3 py-2 font-semibold text-gray-500 uppercase">Hobby Box</th>
-          <th class="text-right px-3 py-2 font-semibold text-gray-500 uppercase">Área Priv.</th>
-          <th class="text-left px-3 py-2 font-semibold text-gray-500 uppercase">Tabela</th>
-          <th class="text-center px-3 py-2 font-semibold text-gray-500 uppercase">Status</th>
-          <th class="px-3 py-2"></th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-gray-100">
+{# ── LAYOUT 2 COLUNAS ─────────────────────────────────────────────── #}
+<div class="flex flex-col lg:flex-row gap-5 items-start">
+
+  <div id="col-det" class="hidden lg:flex lg:flex-col w-full lg:w-72 lg:shrink-0 gap-4">
+
+    {# Identificação #}
+    <div class="bg-white border border-gray-200 rounded-xl p-4">
+      <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Identificação</h3>
+      <dl class="space-y-2 text-xs">
+        <div class="flex justify-between gap-2">
+          <dt class="text-gray-400">Empreendimento</dt>
+          <dd class="text-gray-700 font-medium text-right">{{ neg.empreendimento.nome }}</dd>
+        </div>
+        <div class="flex justify-between gap-2">
+          <dt class="text-gray-400">Data abertura</dt>
+          <dd class="text-gray-700 font-medium">{{ neg.data_abertura|date:'d/m/Y' }}</dd>
+        </div>
+        <div class="flex justify-between gap-2 items-center">
+          <dt class="text-gray-400 shrink-0">Tabela</dt>
+          <dd class="text-right">
+            {% if neg.status == 'ativa' %}
+            <form method="post" action="{% url 'reservas:negociacao_change_tabela' neg.pk %}" class="flex items-center gap-1">
+              {% csrf_token %}
+              <select name="tabela_id" class="px-2 py-1 border border-gray-300 rounded text-xs bg-white focus:outline-none focus:ring-1 focus:ring-brand">
+                <option value="">—</option>
+                {% for t in tabelas_disponiveis %}<option value="{{ t.pk }}" {% if neg.tabela_id == t.pk %}selected{% endif %}>{{ t.nome }}</option>{% endfor %}
+              </select>
+              <button type="submit" class="text-xs text-brand hover:underline">OK</button>
+            </form>
+            {% else %}
+            <span class="text-gray-700 font-medium">{{ neg.tabela.nome|default:'—' }}</span>
+            {% endif %}
+          </dd>
+        </div>
+        {% if neg_atual and neg_atual.desconto_percentual %}
+        <div class="flex justify-between gap-2">
+          <dt class="text-gray-400">Desconto</dt>
+          <dd class="text-gray-700 font-medium">{{ neg_atual.desconto_percentual }}%</dd>
+        </div>
+        {% endif %}
+      </dl>
+      {% if neg.observacoes %}
+      <div class="mt-3 pt-3 border-t border-gray-100">
+        <p class="text-xs text-gray-400 font-medium mb-1">Observações</p>
+        <p class="text-xs text-gray-600">{{ neg.observacoes }}</p>
+      </div>
+      {% endif %}
+    </div>
+
+    {# Unidades #}
+    <div class="bg-white border border-gray-200 rounded-xl p-4">
+      <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Unidades</h3>
+      {% if neg_unidades %}
+      <ul class="space-y-2 mb-3">
         {% for nu in neg_unidades %}
         {% with u=nu.unidade %}
-        <tr class="hover:bg-gray-50">
-          <td class="px-3 py-2 font-bold text-gray-800">{{ u.numero }}</td>
-          <td class="px-3 py-2 text-gray-600">{{ u.bloco.nome }}</td>
-          <td class="px-3 py-2 text-gray-600">
-            {% for d in u.designacoes.all %}{% if d.tipo == 'garagem_carro' or d.tipo == 'garagem_moto' %}{{ d.nome }} {% endif %}{% endfor %}
-            {% for c in u.complementares.all %}{% if c.tipo and 'aragem' in c.tipo.nome %}{{ c.numero }} {% endif %}{% endfor %}
-          </td>
-          <td class="px-3 py-2 text-gray-600">
-            {% for d in u.designacoes.all %}{% if d.tipo == 'hobby_box' %}{{ d.nome }} {% endif %}{% endfor %}
-            {% for c in u.complementares.all %}{% if c.tipo and 'obby' in c.tipo.nome %}{{ c.numero }} {% endif %}{% for d in c.designacoes.all %}{% if d.tipo == 'hobby_box' %}({{ d.nome }}) {% endif %}{% endfor %}{% endfor %}
-          </td>
-          <td class="px-3 py-2 text-right text-gray-700">{{ u.area_privativa|brl_area:2 }} m²</td>
-          <td class="px-3 py-2 text-gray-500">{{ nu.tabela_item.tabela.nome|default:'—' }}</td>
-          <td class="px-3 py-2 text-center">
-            {% if u.status %}<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">{{ u.status }}</span>{% else %}—{% endif %}
-          </td>
-          <td class="px-3 py-2 text-right">
-            {% if neg.status == 'ativa' %}
-            <form method="post" action="{% url 'reservas:negociacao_unidade_remove' neg.pk nu.pk %}">
-              {% csrf_token %}
-              <button type="submit" class="text-gray-300 hover:text-red-500 transition">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-              </button>
-            </form>
-            {% endif %}
-          </td>
-        </tr>
-        {% endwith %}
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  {% else %}
-  <p class="text-sm text-gray-400 mb-4">Nenhuma unidade vinculada.</p>
-  {% endif %}
-
-  {% if neg.status == 'ativa' and unidades_disponiveis %}
-  <form method="post" action="{% url 'reservas:negociacao_unidade_add' neg.pk %}" class="flex flex-wrap gap-2">
-    {% csrf_token %}
-    <select name="unidade_id" class="flex-1 min-w-48 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand transition">
-      <option value="">Selecionar unidade…</option>
-      {% for u in unidades_disponiveis %}
-      <option value="{{ u.pk }}">{{ u.bloco.nome }} / {{ u.numero }}</option>
-      {% endfor %}
-    </select>
-    <button type="submit" class="px-4 py-2 bg-brand hover:bg-brand-dark text-white rounded-lg text-sm font-medium transition">
-      Adicionar unidade
-    </button>
-  </form>
-  {% endif %}
-</div>
-
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-
-  <!-- Partes -->
-  <div class="bg-white border border-gray-200 rounded-xl p-6">
-    <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">Partes</h2>
-    {% if partes %}
-    <ul class="space-y-2 mb-4">
-      {% for parte in partes %}
-      <li class="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
-        <div>
-          <p class="text-sm font-medium text-gray-800">{{ parte.pessoa.nome_exibicao }}</p>
-          <p class="text-xs text-gray-400">{{ parte.tipo.nome }}</p>
-          {% if parte.pessoa.tipo == 'pf' and parte.pessoa.conjuge and parte.tipo.slug == 'proponente' or parte.pessoa.tipo == 'pf' and parte.pessoa.conjuge and parte.tipo.slug == 'segundo_proponente' %}
-          <p class="text-xs text-gray-400 mt-0.5">
-            Cônjuge: <a href="{% url 'pessoas:pessoa_detail' parte.pessoa.conjuge.pk %}"
-                        class="text-brand hover:underline">{{ parte.pessoa.conjuge.nome_exibicao }}</a>
-          </p>
-          {% endif %}
-          {% if parte.pessoa.tipo == 'pj' and parte.tipo.slug != 'corretor' and parte.tipo.slug != 'imobiliaria' %}
-          {% for rep in parte.pessoa.representantes_legais.all %}
-          <p class="text-xs text-gray-400 mt-0.5">
-            Rep.: <a href="{% url 'pessoas:pessoa_detail' rep.pessoa_fisica.pk %}"
-                     class="text-brand hover:underline">{{ rep.pessoa_fisica.nome_exibicao }}</a>
-            {% if rep.cargo %}<span class="text-gray-300"> · {{ rep.cargo }}</span>{% endif %}
-          </p>
-          {% endfor %}
-          {% endif %}
-        </div>
-        {% if neg.status == 'ativa' %}
-        <form method="post" action="{% url 'reservas:parte_remove' neg.pk parte.pk %}">
-          {% csrf_token %}
-          <button type="submit" class="text-gray-300 hover:text-red-500 transition">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-          </button>
-        </form>
-        {% endif %}
-      </li>
-      {% endfor %}
-    </ul>
-    {% else %}
-    <p class="text-sm text-gray-400 mb-4">Nenhuma parte cadastrada.</p>
-    {% endif %}
-
-    {% if neg.status == 'ativa' %}
-    <form method="post" action="{% url 'reservas:parte_add' neg.pk %}" class="space-y-2">
-      {% csrf_token %}
-      <select name="tipo" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand transition">
-        <option value="">Tipo…</option>
-        {% for tp in tipos_parte %}
-        <option value="{{ tp.pk }}">{{ tp.nome }}</option>
-        {% endfor %}
-      </select>
-      <select name="pessoa_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand transition">
-        <option value="">Selecionar pessoa…</option>
-        {% for p in pessoas_disponiveis %}
-        <option value="{{ p.pk }}">{{ p.nome_exibicao }}</option>
-        {% endfor %}
-      </select>
-      <button type="submit" class="w-full px-4 py-2 bg-brand hover:bg-brand-dark text-white rounded-lg text-sm font-medium transition">
-        Adicionar parte
-      </button>
-    </form>
-    {% endif %}
-  </div>
-
-
-</div>
-
-<!-- Rodadas de Negociação -->
-{% if todas_rodadas|length > 1 or neg.status == 'ativa' %}
-<div class="bg-white border border-gray-200 rounded-xl p-5 mb-6">
-  <div class="flex items-center justify-between mb-3">
-    <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">Rodadas</h2>
-    {% if neg.status == 'ativa' and neg_atual %}
-    <form method="post" action="{% url 'reservas:negociacao_nova_rodada' neg.pk %}"
-          onsubmit="return confirm('Criar nova rodada? A rodada atual será marcada como recusada.')">
-      {% csrf_token %}
-      <button type="submit"
-              class="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 bg-brand hover:bg-brand-dark text-white rounded-lg transition">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-        Nova rodada
-      </button>
-    </form>
-    {% endif %}
-  </div>
-  <div class="flex flex-wrap gap-2">
-    {% for rodada in todas_rodadas %}
-    <div class="flex items-center gap-2 px-3 py-2 rounded-lg border {% if rodada.pk == neg_atual.pk %}border-brand bg-brand/5{% else %}border-gray-200 bg-gray-50{% endif %}">
-      <span class="text-xs font-semibold {% if rodada.pk == neg_atual.pk %}text-brand{% else %}text-gray-600{% endif %}">Rodada #{{ rodada.numero }}</span>
-      <span class="px-1.5 py-0.5 rounded text-xs font-medium
-        {% if rodada.status == 'ativa' %}bg-green-100 text-green-700
-        {% elif rodada.status == 'aprovada' %}bg-blue-100 text-blue-700
-        {% else %}bg-gray-100 text-gray-500{% endif %}">
-        {{ rodada.get_status_display }}
-      </span>
-      <span class="text-xs text-gray-500">{{ rodada.valor_proposto|brl_moeda }}</span>
-      {% if rodada.status == 'ativa' and neg.status == 'ativa' %}
-      <form method="post" action="{% url 'reservas:negociacao_aprovar_rodada' neg.pk rodada.pk %}">
-        {% csrf_token %}
-        <button type="submit" class="text-xs text-blue-600 hover:underline font-medium">Aprovar</button>
-      </form>
-      {% endif %}
-    </div>
-    {% endfor %}
-  </div>
-</div>
-{% endif %}
-
-<!-- Valores da Tabela de Vendas -->
-{% if tabela_series_resumo %}
-<div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
-  <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">
-    Valores da Tabela de Vendas
-    {% if neg_unidades|length > 1 %}
-    <span class="ml-2 text-xs font-normal text-gray-400">(soma de {{ neg_unidades|length }} unidades)</span>
-    {% endif %}
-  </h2>
-  <div class="overflow-x-auto">
-    <table class="w-full text-sm">
-      <thead class="bg-gray-50 border-b border-gray-200">
-        <tr>
-          <th class="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Tipo</th>
-          <th class="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Total</th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-gray-100">
-        {% for s in tabela_series_resumo %}
-        <tr class="hover:bg-gray-50">
-          <td class="px-4 py-2.5 font-medium text-gray-700">
-            {{ s.label }}
-            <span class="text-xs text-gray-400 ml-1">({{ s.info.quantidade }}×{% if s.info.periodicidade %} {{ s.info.periodicidade }}{% endif %})</span>
-          </td>
-          <td class="px-4 py-2.5 text-right font-semibold text-gray-800">{{ s.total|brl_moeda }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-      <tfoot class="border-t-2 border-gray-200 bg-gray-50">
-        <tr>
-          <td class="px-4 py-2.5 font-bold text-gray-800">Total</td>
-          <td class="px-4 py-2.5 text-right font-bold text-brand">{{ tabela_total|brl_moeda }}</td>
-        </tr>
-      </tfoot>
-    </table>
-  </div>
-</div>
-{% endif %}
-
-<!-- Séries da proposta -->
-<div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
-  <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
-    <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-      Valores Propostos
-      {% if neg_atual %}<span class="ml-2 text-xs font-normal text-gray-400">Rodada #{{ neg_atual.numero }}</span>{% endif %}
-    </h2>
-    <div class="flex items-center gap-3">
-      {% if neg.tabela_id and neg.status == 'ativa' %}
-      <form method="post" action="{% url 'reservas:negociacao_reset_series' neg.pk %}"
-            onsubmit="return confirm('Substituir as séries propostas pelos valores da tabela de vendas?')">
-        {% csrf_token %}
-        <button type="submit"
-                class="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-gray-600">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-          </svg>
-          Trazer valores da tabela
-        </button>
-      </form>
-      {% endif %}
-    </div>
-  </div>
-
-  {% if series_tabela %}
-  <!-- Comparativo tabela vs proposta -->
-  <div class="overflow-x-auto mb-4">
-    <table class="w-full text-xs">
-      <thead class="bg-gray-50 border-b border-gray-200">
-        <tr>
-          <th class="text-left px-3 py-2 font-semibold text-gray-500 uppercase tracking-wide">Série</th>
-          <th class="text-right px-3 py-2 font-semibold text-gray-500 uppercase tracking-wide">Qtd.</th>
-          <th class="text-right px-3 py-2 font-semibold text-gray-500 uppercase tracking-wide">Tabela (vr/parcela)</th>
-          <th class="text-right px-3 py-2 font-semibold text-gray-500 uppercase tracking-wide">Tabela (total)</th>
-          <th class="text-right px-3 py-2 font-semibold text-gray-500 uppercase tracking-wide text-brand">Proposta (vr/parcela)</th>
-          <th class="text-right px-3 py-2 font-semibold text-gray-500 uppercase tracking-wide text-brand">Proposta (total)</th>
-          <th class="px-3 py-2"></th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-gray-100">
-        {% for st in series_tabela %}
-        {% with vt=valores_tabela|get_item:st.pk %}
-        {% with sp=series|dictsort:"tipo"|first %}
-        <tr class="hover:bg-gray-50">
-          <td class="px-3 py-2 font-medium text-gray-700">{{ st.get_tipo_display }}</td>
-          <td class="px-3 py-2 text-right text-gray-600">{{ st.quantidade }}×</td>
-          <td class="px-3 py-2 text-right text-gray-600">{% if vt %}{{ vt.valor|brl_moeda }}{% else %}—{% endif %}</td>
-          <td class="px-3 py-2 text-right text-gray-700 font-medium">{% if vt %}{{ vt.valor_total|brl_moeda }}{% else %}—{% endif %}</td>
-          <td class="px-3 py-2 text-right text-brand">—</td>
-          <td class="px-3 py-2 text-right text-brand font-medium">—</td>
-          <td class="px-3 py-2"></td>
-        </tr>
-        {% endwith %}
-        {% endwith %}
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  {% endif %}
-
-  <!-- Séries propostas -->
-  {% if series %}
-  <div class="overflow-x-auto mb-4">
-    <table class="w-full text-xs">
-      <thead class="bg-brand/5 border-b border-brand/20">
-        <tr>
-          <th class="text-left px-3 py-2 font-semibold text-brand uppercase tracking-wide">Tipo</th>
-          <th class="text-left px-3 py-2 font-semibold text-brand uppercase tracking-wide">Descrição</th>
-          <th class="text-right px-3 py-2 font-semibold text-brand uppercase tracking-wide">Qtd.</th>
-          <th class="text-right px-3 py-2 font-semibold text-brand uppercase tracking-wide">Vr/Parcela</th>
-          <th class="text-right px-3 py-2 font-semibold text-brand uppercase tracking-wide">Total</th>
-          <th class="text-left px-3 py-2 font-semibold text-brand uppercase tracking-wide">Periodicidade</th>
-          <th class="text-left px-3 py-2 font-semibold text-brand uppercase tracking-wide">1º Venc.</th>
-          <th class="px-3 py-2"></th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-gray-100">
-        {% for s in series %}
-        <tr class="hover:bg-gray-50">
-          <td class="px-3 py-2 font-medium text-gray-700">{{ s.get_tipo_display }}</td>
-          <td class="px-3 py-2 text-gray-500">{{ s.descricao|default:'—' }}</td>
-          <td class="px-3 py-2 text-right text-gray-600">{{ s.quantidade }}×</td>
-          <td class="px-3 py-2 text-right text-gray-700">{{ s.valor_por_parcela|brl_moeda }}</td>
-          <td class="px-3 py-2 text-right font-bold text-brand">{{ s.valor_total|brl_moeda }}</td>
-          <td class="px-3 py-2 text-gray-500">{% if s.periodicidade %}{{ s.get_periodicidade_display }}{% else %}—{% endif %}</td>
-          <td class="px-3 py-2 text-gray-500">{{ s.data_primeiro_vencimento|date:'d/m/Y'|default:'—' }}</td>
-          <td class="px-3 py-2 text-right">
-            {% if neg.status == 'ativa' %}
-            <div class="flex items-center justify-end gap-2">
-              <a href="{% url 'reservas:serie_update' neg.pk s.pk %}"
-                 class="text-gray-400 hover:text-brand transition" title="Editar">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-              </a>
-            <form method="post" action="{% url 'reservas:serie_remove' neg.pk s.pk %}">
-              {% csrf_token %}
-              <button type="submit" class="text-gray-300 hover:text-red-500 transition">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-              </button>
-            </form>
+        <li class="flex items-start justify-between gap-2">
+          <div>
+            <div class="text-sm font-medium text-gray-800">{{ u.numero }}</div>
+            <div class="text-xs text-gray-400">
+              {{ u.bloco.nome }}
+              {% if u.area_privativa %} · {{ u.area_privativa|brl_area:0 }} m²{% endif %}
+              {% if u.status %} · {{ u.status }}{% endif %}
             </div>
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-      <tfoot class="border-t-2 border-gray-200">
-        <tr class="bg-gray-50">
-          <td colspan="4" class="px-3 py-2.5 font-bold text-gray-800">Total proposto</td>
-          <td class="px-3 py-2.5 text-right font-bold text-brand">{{ neg.valor_negociado|brl_moeda }}</td>
-          <td colspan="3"></td>
-        </tr>
-        {% if resumo.diferenca_total %}
-        <tr class="bg-gray-50 border-t border-gray-100">
-          <td colspan="4" class="px-3 py-2 text-xs text-gray-500">Diferença para tabela de vendas</td>
-          <td class="px-3 py-2 text-right text-xs font-semibold {% if resumo.diferenca_total < 0 %}text-red-600{% elif resumo.diferenca_total > 0 %}text-green-600{% else %}text-gray-400{% endif %}">
-            {{ resumo.diferenca_total|brl_moeda }}
-          </td>
-          <td colspan="3"></td>
-        </tr>
-        {% endif %}
-      </tfoot>
-    </table>
-  </div>
-  {% else %}
-  <p class="text-sm text-gray-400 mb-4">Nenhuma série proposta.</p>
-  {% endif %}
-
-  <!-- Adicionar série -->
-  {% if neg.status == 'ativa' %}
-  <details class="group">
-    <summary class="cursor-pointer text-xs font-medium text-brand hover:underline list-none">+ Adicionar série</summary>
-    <form method="post" action="{% url 'reservas:serie_add' neg.pk %}" class="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
-      {% csrf_token %}
-      <div>
-        <label class="block text-xs text-gray-500 mb-1">Tipo</label>
-        <select name="tipo" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-brand transition">
-          {% for valor, label in tipos_serie %}
-          <option value="{{ valor }}">{{ label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div>
-        <label class="block text-xs text-gray-500 mb-1">Descrição</label>
-        <input type="text" name="descricao" placeholder="Ex: Financiamento CEF"
-               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-brand transition">
-      </div>
-      <div>
-        <label class="block text-xs text-gray-500 mb-1">Qtd. parcelas</label>
-        <input type="number" name="quantidade" value="1" min="1"
-               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-brand transition">
-      </div>
-      <div>
-        <label class="block text-xs text-gray-500 mb-1">Valor por parcela</label>
-        <input type="text" name="valor_por_parcela" placeholder="0,00" data-mask="currency"
-               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-brand transition">
-      </div>
-      <div>
-        <label class="block text-xs text-gray-500 mb-1">Periodicidade</label>
-        <select name="periodicidade" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-brand transition">
-          <option value="">—</option>
-          {% for valor, label in periodicidades %}
-          <option value="{{ valor }}">{{ label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div>
-        <label class="block text-xs text-gray-500 mb-1">Data 1º vencimento</label>
-        <input type="date" name="data_primeiro_vencimento"
-               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-brand transition">
-      </div>
-      <div class="sm:col-span-2 flex items-end">
-        <button type="submit" class="px-4 py-2 bg-brand hover:bg-brand-dark text-white rounded-lg text-xs font-medium transition">
-          Adicionar
-        </button>
-      </div>
-    </form>
-  </details>
-  {% endif %}
-</div>
-
-
-<!-- Calendário de parcelas -->
-{% if calendario %}
-<div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
-  <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">
-    Calendário de parcelas
-    <span class="ml-2 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">{{ calendario|length }}</span>
-  </h2>
-  <div class="overflow-x-auto">
-    <table class="w-full text-xs">
-      <thead class="bg-gray-50 border-b border-gray-200">
-        <tr>
-          <th class="text-right px-3 py-2 font-semibold text-gray-500 uppercase tracking-wide w-12">Ordem</th>
-          <th class="text-left px-3 py-2 font-semibold text-gray-500 uppercase tracking-wide">Mês / Data</th>
-          <th class="text-left px-3 py-2 font-semibold text-gray-500 uppercase tracking-wide">Série</th>
-          <th class="text-right px-3 py-2 font-semibold text-gray-500 uppercase tracking-wide">Valor</th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-gray-100">
-        {% for p in calendario %}
-        <tr class="hover:bg-gray-50">
-          <td class="px-3 py-2 text-right text-gray-400">{{ p.ordem }}</td>
-          <td class="px-3 py-2 font-medium text-gray-800">
-            {% if p.data %}{{ p.data|date:'M/Y'|upper }}{% else %}<span class="text-gray-300">—</span>{% endif %}
-          </td>
-          <td class="px-3 py-2 text-gray-500">{{ p.serie_label }}</td>
-          <td class="px-3 py-2 text-right font-medium text-brand">{{ p.valor|brl_moeda }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-      <tfoot class="border-t-2 border-gray-200 bg-gray-50">
-        <tr>
-          <td colspan="3" class="px-3 py-2.5 font-bold text-gray-800">Total</td>
-          <td class="px-3 py-2.5 text-right font-bold text-brand">{{ neg.valor_negociado|brl_moeda }}</td>
-        </tr>
-      </tfoot>
-    </table>
-  </div>
-</div>
-{% endif %}
-
-<!-- Histórico de etapas -->
-<div class="mt-4">
-  <details class="group">
-    <summary class="flex items-center gap-3 cursor-pointer list-none select-none bg-white border border-gray-200 rounded-xl px-5 py-3 hover:bg-gray-50 transition">
-      <svg class="w-4 h-4 text-gray-400 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-      </svg>
-      <span class="text-sm font-semibold text-gray-700">Histórico de etapas</span>
-      <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">{{ historico|length }}</span>
-    </summary>
-    <div class="mt-2 space-y-2">
-      {% for h in historico %}
-      <div class="bg-white border border-gray-200 rounded-xl px-5 py-3 flex items-start justify-between gap-3">
-        <div>
-          <div class="flex items-center gap-2 text-sm">
-            {% if h.etapa_anterior %}
-            <span class="text-gray-500">{{ h.etapa_anterior.nome }}</span>
-            <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-            {% endif %}
-            <span class="font-medium text-gray-800">{{ h.etapa_nova.nome }}</span>
           </div>
-          {% if h.observacao %}<p class="text-xs text-gray-400 mt-0.5">{{ h.observacao }}</p>{% endif %}
-        </div>
-        <div class="text-right shrink-0">
-          <p class="text-xs text-gray-500">{{ h.data|date:'d/m/Y H:i' }}</p>
-          <p class="text-xs text-gray-400">{{ h.usuario|default:'sistema' }}</p>
-        </div>
-      </div>
-      {% empty %}
-      <div class="bg-white border border-gray-200 rounded-xl px-6 py-6 text-center text-gray-400 text-sm">Sem histórico.</div>
-      {% endfor %}
+          {% if neg.status == 'ativa' %}
+          <form method="post" action="{% url 'reservas:negociacao_unidade_remove' neg.pk nu.pk %}">{% csrf_token %}
+            <button type="submit" class="text-gray-300 hover:text-red-500 transition mt-0.5">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </form>
+          {% endif %}
+        </li>
+        {% endwith %}
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="text-xs text-gray-400 mb-3">Nenhuma unidade.</p>
+      {% endif %}
+      {% if neg.status == 'ativa' and unidades_disponiveis %}
+      <form method="post" action="{% url 'reservas:negociacao_unidade_add' neg.pk %}" class="flex gap-1.5">
+        {% csrf_token %}
+        <select name="unidade_id" class="flex-1 px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-brand transition">
+          <option value="">Selecionar…</option>
+          {% for u in unidades_disponiveis %}<option value="{{ u.pk }}">{{ u.bloco.nome }} / {{ u.numero }}</option>{% endfor %}
+        </select>
+        <button type="submit" class="px-3 py-1.5 bg-brand hover:bg-brand-dark text-white rounded-lg text-xs font-medium transition">+</button>
+      </form>
+      {% endif %}
     </div>
-  </details>
+
+    {# Partes #}
+    <div class="bg-white border border-gray-200 rounded-xl p-4">
+      <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Partes</h3>
+      {% if partes %}
+      <ul class="space-y-3 mb-3">
+        {% for parte in partes %}
+        <li class="flex items-start justify-between gap-2">
+          <div>
+            <div class="text-xs text-gray-400">{{ parte.tipo.nome }}</div>
+            <div class="text-sm font-medium text-gray-800">
+              <a href="{% url 'pessoas:pessoa_detail' parte.pessoa.pk %}" class="hover:text-brand transition">{{ parte.pessoa.nome_exibicao }}</a>
+            </div>
+            {% if parte.pessoa.tipo == 'pf' and parte.pessoa.conjuge %}
+            <div class="text-xs text-gray-400">Cônjuge: <a href="{% url 'pessoas:pessoa_detail' parte.pessoa.conjuge.pk %}" class="hover:text-brand">{{ parte.pessoa.conjuge.nome_exibicao }}</a></div>
+            {% endif %}
+          </div>
+          {% if neg.status == 'ativa' %}
+          <form method="post" action="{% url 'reservas:parte_remove' neg.pk parte.pk %}">{% csrf_token %}
+            <button type="submit" class="text-gray-300 hover:text-red-500 transition mt-0.5">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </form>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="text-xs text-gray-400 mb-3">Nenhuma parte cadastrada.</p>
+      {% endif %}
+      {% if neg.status == 'ativa' %}
+      <form method="post" action="{% url 'reservas:parte_add' neg.pk %}" class="space-y-1.5">
+        {% csrf_token %}
+        <select name="tipo" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-brand transition">
+          <option value="">Tipo…</option>
+          {% for tp in tipos_parte %}<option value="{{ tp.pk }}">{{ tp.nome }}</option>{% endfor %}
+        </select>
+        <select name="pessoa_id" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-brand transition">
+          <option value="">Selecionar pessoa…</option>
+          {% for p in pessoas_disponiveis %}<option value="{{ p.pk }}">{{ p.nome_exibicao }}</option>{% endfor %}
+        </select>
+        <button type="submit" class="w-full px-3 py-1.5 bg-brand hover:bg-brand-dark text-white rounded-lg text-xs font-medium transition">+ Adicionar</button>
+      </form>
+      {% endif %}
+    </div>
+
+  </div>
+  {# /coluna esquerda #}
+
+  <div id="col-neg" class="flex-1 min-w-0 flex flex-col gap-4">
+
+    {# Seletor de propostas #}
+    {% if todas_propostas|length > 1 or neg.status == 'ativa' %}
+    <div class="flex flex-wrap items-center gap-2">
+      <span class="text-xs text-gray-500 font-medium">Proposta:</span>
+      {% for proposta in todas_propostas %}
+      <a href="#"
+         onclick="carregarProposta('{% url 'reservas:proposta_valores' neg.pk proposta.pk %}', this); return false;"
+         data-proposta-id="{{ proposta.pk }}"
+         class="proposta-tab inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold border transition
+           {% if proposta.pk == neg_atual.pk %}border-indigo-600 bg-indigo-600 text-white{% else %}border-gray-300 text-gray-500 hover:bg-gray-50{% endif %}">
+        #{{ proposta.numero }}
+        <span class="{% if proposta.pk == neg_atual.pk %}text-indigo-200{% else %}text-gray-400{% endif %}">
+          {% if proposta.status == 'aprovada' %}✓{% elif proposta.status == 'recusada' %}✗{% endif %}
+        </span>
+      </a>
+      {% endfor %}
+      {% if neg.status == 'ativa' and neg_atual %}
+      <form method="post" action="{% url 'reservas:negociacao_nova_rodada' neg.pk %}"
+            onsubmit="return confirm('Criar nova proposta? A proposta atual será marcada como recusada.')">
+        {% csrf_token %}
+        <button type="submit" class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium border border-dashed border-gray-300 text-gray-400 hover:bg-gray-50 transition">
+          + Nova proposta
+        </button>
+      </form>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {# Bloco financeiro — substituído por fetch ao trocar proposta #}
+    <div id="bloco-valores">
+      {% include 'reservas/_proposta_valores.html' %}
+    </div>
+
+    {# Histórico de etapas #}
+    <details class="group bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <summary class="flex items-center justify-between px-4 py-3 cursor-pointer list-none hover:bg-gray-50 transition">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Histórico de etapas</span>
+          <span class="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-500">{{ historico|length }}</span>
+        </div>
+        <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+      </summary>
+      <div class="border-t border-gray-100 divide-y divide-gray-100">
+        {% for h in historico %}
+        <div class="px-4 py-3 flex items-start justify-between gap-3">
+          <div class="flex items-start gap-2">
+            <div class="w-1.5 h-1.5 rounded-full bg-indigo-400 mt-1.5 shrink-0"></div>
+            <div>
+              <div class="flex items-center gap-2 text-xs">
+                {% if h.etapa_anterior %}<span class="text-gray-400">{{ h.etapa_anterior.nome }}</span>
+                <svg class="w-3 h-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>{% endif %}
+                <span class="font-medium text-gray-700">{{ h.etapa_nova.nome }}</span>
+              </div>
+              {% if h.observacao %}<p class="text-xs text-gray-400 mt-0.5 italic">{{ h.observacao }}</p>{% endif %}
+            </div>
+          </div>
+          <div class="text-right shrink-0">
+            <p class="text-xs text-gray-500">{{ h.data|date:'d/m/Y H:i' }}</p>
+            <p class="text-xs text-gray-400">{{ h.usuario|default:'sistema' }}</p>
+          </div>
+        </div>
+        {% empty %}
+        <div class="px-4 py-4 text-center text-xs text-gray-400">Sem histórico.</div>
+        {% endfor %}
+      </div>
+    </details>
+
+  </div>
+  {# /coluna direita #}
+
 </div>
 
 {% load static %}
 <script src="{% static 'js/masks.js' %}"></script>
+<script>
+/* ── Tabs mobile ── */
+function trocarTab(nome) {
+  const det = document.getElementById('col-det');
+  const neg = document.getElementById('col-neg');
+  const btnDet = document.getElementById('btn-det');
+  const btnNeg = document.getElementById('btn-neg');
+  if (nome === 'det') {
+    det.classList.remove('hidden'); det.classList.add('flex', 'flex-col');
+    neg.classList.add('hidden');
+    btnDet.classList.add('border-indigo-600', 'text-indigo-600');
+    btnDet.classList.remove('border-transparent', 'text-gray-500');
+    btnNeg.classList.remove('border-indigo-600', 'text-indigo-600');
+    btnNeg.classList.add('border-transparent', 'text-gray-500');
+  } else {
+    neg.classList.remove('hidden');
+    det.classList.add('hidden'); det.classList.remove('flex', 'flex-col');
+    btnNeg.classList.add('border-indigo-600', 'text-indigo-600');
+    btnNeg.classList.remove('border-transparent', 'text-gray-500');
+    btnDet.classList.remove('border-indigo-600', 'text-indigo-600');
+    btnDet.classList.add('border-transparent', 'text-gray-500');
+  }
+}
+
+/* ── Troca de proposta via fetch ── */
+function carregarProposta(url, link) {
+  const bloco = document.getElementById('bloco-valores');
+  bloco.style.opacity = '0.4';
+  document.querySelectorAll('.proposta-tab').forEach(el => {
+    const active = el === link;
+    el.classList.toggle('border-indigo-600', active);
+    el.classList.toggle('bg-indigo-600', active);
+    el.classList.toggle('text-white', active);
+    el.classList.toggle('border-gray-300', !active);
+    el.classList.toggle('text-gray-500', !active);
+  });
+  fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(r => r.text())
+    .then(html => { bloco.innerHTML = html; bloco.style.opacity = '1'; iniciarMascaras(); })
+    .catch(() => { bloco.style.opacity = '1'; });
+}
+
+/* ── Edição inline de série ── */
+function editarSerie(url) {
+  const bloco = document.getElementById('bloco-serie-form');
+  if (!bloco) return;
+  bloco.style.opacity = '0.4';
+  fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(r => r.text())
+    .then(html => {
+      bloco.innerHTML = html;
+      bloco.classList.remove('hidden');
+      bloco.style.opacity = '1';
+      bloco.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      iniciarMascaras();
+      bloco.querySelectorAll('[data-url-cancelar]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          bloco.innerHTML = '';
+          bloco.classList.add('hidden');
+        });
+      });
+      bloco.querySelectorAll('form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+          e.preventDefault();
+          const fd = new FormData(form);
+          fetch(form.action, { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(r => r.text())
+            .then(html => {
+              document.getElementById('bloco-valores').innerHTML = html;
+              bloco.innerHTML = ''; bloco.classList.add('hidden');
+              iniciarMascaras();
+            });
+        });
+      });
+    });
+}
+</script>
 {% endblock %}

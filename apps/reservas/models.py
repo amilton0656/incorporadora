@@ -147,8 +147,10 @@ class Reserva(SoftDeleteModel):
 
     @property
     def proposta_ativa(self):
-        """Proposta mais recente com status ativo."""
-        return self.propostas.filter(status=Proposta.STATUS_ATIVA).order_by('-numero').first()
+        """Proposta mais recente com status ativo (exclui contropropostas)."""
+        return self.propostas.filter(
+            status=Proposta.STATUS_ATIVA, tipo=Proposta.TIPO_PROPOSTA
+        ).order_by('-numero').first()
 
     @property
     def valor_negociado(self):
@@ -224,7 +226,17 @@ class Proposta(models.Model):
         (STATUS_RECUSADA, 'Recusada'),
     ]
 
+    TIPO_PROPOSTA       = 'proposta'
+    TIPO_CONTRAPROPOSTA = 'contraproposta'
+    TIPO_CHOICES        = [
+        (TIPO_PROPOSTA,       'Proposta'),
+        (TIPO_CONTRAPROPOSTA, 'Contraproposta'),
+    ]
+
     reserva             = models.ForeignKey(Reserva, on_delete=models.CASCADE, related_name='propostas')
+    proposta_pai        = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE,
+                                            related_name='contropropostas')
+    tipo                = models.CharField('Tipo', max_length=20, choices=TIPO_CHOICES, default=TIPO_PROPOSTA)
     numero              = models.PositiveIntegerField('Numero', editable=False)
     status              = models.CharField('Status', max_length=10, choices=STATUS_CHOICES, default=STATUS_ATIVA)
     desconto_percentual = models.DecimalField('Desconto (%)', max_digits=5, decimal_places=2,
@@ -239,12 +251,19 @@ class Proposta(models.Model):
         verbose_name_plural = 'Propostas'
 
     def __str__(self):
+        if self.tipo == self.TIPO_CONTRAPROPOSTA:
+            return f'Reserva #{self.reserva.numero} - Contraproposta #{self.numero}'
         return f'Reserva #{self.reserva.numero} - Proposta #{self.numero}'
 
     def save(self, *args, **kwargs):
         if not self.numero:
-            last = Proposta.objects.filter(reserva=self.reserva).order_by('-numero').first()
-            self.numero = (last.numero + 1) if last else 1
+            if self.tipo == self.TIPO_CONTRAPROPOSTA and self.proposta_pai_id:
+                self.numero = self.proposta_pai.numero
+            else:
+                last = Proposta.objects.filter(
+                    reserva=self.reserva, tipo=self.TIPO_PROPOSTA
+                ).order_by('-numero').first()
+                self.numero = (last.numero + 1) if last else 1
         super().save(*args, **kwargs)
 
     @property

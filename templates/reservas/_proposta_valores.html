@@ -1,64 +1,147 @@
 {% load formatters %}
-<!-- Séries da proposta -->
-<div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
-  <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
-    <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-      Valores Propostos
-      {% if neg_atual %}<span class="ml-2 text-xs font-normal text-gray-400">Proposta #{{ neg_atual.numero }}</span>{% endif %}
-    </h2>
+
+{# ── TABELA DE VENDAS ──────────────────────────────────────────── #}
+{% if tabela_series_resumo %}
+<details open class="group mb-4">
+  <summary class="flex items-center justify-between px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl cursor-pointer list-none hover:bg-gray-100 transition">
+    <div class="flex items-center gap-2">
+      <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Tabela de Vendas</span>
+      {% if neg_unidades|length > 1 %}
+      <span class="text-xs text-gray-400">({{ neg_unidades|length }} unidades)</span>
+      {% endif %}
+    </div>
     <div class="flex items-center gap-3">
-      {% if neg.tabela_id and neg.status == 'ativa' %}
-      <form method="post" action="{% url 'reservas:negociacao_reset_series' neg.pk %}"
-            onsubmit="return confirm('Substituir as séries propostas pelos valores da tabela de vendas?')">
+      <span class="text-sm font-bold text-gray-700">{{ tabela_total|brl_moeda }}</span>
+      <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+      </svg>
+    </div>
+  </summary>
+  <div class="border border-t-0 border-gray-200 rounded-b-xl overflow-hidden">
+    {# desktop #}
+    <div class="hidden sm:block overflow-x-auto">
+      <table class="w-full text-xs table-fixed">
+        <thead class="bg-gray-50 border-b border-gray-200">
+          <tr>
+            <th class="w-[187px] text-left px-4 py-2 font-semibold text-gray-500 uppercase tracking-wide">Tipo</th>
+            <th class="w-[105px] text-right px-4 py-2 font-semibold text-gray-500 uppercase tracking-wide">Qtd.</th>
+            <th class="w-[177px] text-right px-4 py-2 font-semibold text-gray-500 uppercase tracking-wide">Vr/Parcela</th>
+            <th class="w-[177px] text-right px-4 py-2 font-semibold text-gray-500 uppercase tracking-wide">Total</th>
+            <th class="w-[149px] text-left px-4 py-2 font-semibold text-gray-500 uppercase tracking-wide">1º Venc.</th>
+            <th class="text-left px-4 py-2 font-semibold text-gray-500 uppercase tracking-wide">Periodicidade</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100 bg-white">
+          {% for s in tabela_series_resumo %}
+          <tr class="hover:bg-gray-50">
+            <td class="px-4 py-2.5 font-medium text-gray-700">{{ s.label }}</td>
+            <td class="px-4 py-2.5 text-right text-gray-500">{{ s.info.quantidade }}×</td>
+            <td class="px-4 py-2.5 text-right text-gray-600">{{ s.valor_parcela|brl_moeda }}</td>
+            <td class="px-4 py-2.5 text-right font-semibold text-gray-800">{{ s.total|brl_moeda }}</td>
+            <td class="px-4 py-2.5 text-gray-500">{{ s.info.data_primeiro_vencimento|date:'d/m/Y'|default:'—' }}</td>
+            <td class="px-4 py-2.5 text-gray-500">{{ s.info.periodicidade|default:'—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot class="border-t-2 border-gray-200 bg-gray-50">
+          <tr>
+            <td colspan="3" class="px-4 py-2.5 font-bold text-gray-700">Total</td>
+            <td class="px-4 py-2.5 text-right font-bold text-gray-900">{{ tabela_total|brl_moeda }}</td>
+            <td colspan="2"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    {# mobile: linhas em card #}
+    <div class="sm:hidden divide-y divide-gray-100 bg-white">
+      {% for s in tabela_series_resumo %}
+      <div class="px-4 py-3 flex items-center justify-between">
+        <div>
+          <div class="text-sm font-medium text-gray-700">{{ s.label }}</div>
+          <div class="text-xs text-gray-400">{{ s.info.quantidade }}× · {{ s.valor_parcela|brl_moeda }}/parc
+            {% if s.info.periodicidade %} · {{ s.info.periodicidade }}{% endif %}
+          </div>
+        </div>
+        <div class="text-sm font-semibold text-gray-800">{{ s.total|brl_moeda }}</div>
+      </div>
+      {% endfor %}
+      <div class="px-4 py-3 flex justify-between bg-gray-50">
+        <span class="text-sm font-bold text-gray-700">Total</span>
+        <span class="text-sm font-bold text-gray-900">{{ tabela_total|brl_moeda }}</span>
+      </div>
+    </div>
+  </div>
+</details>
+{% endif %}
+
+{# ── PROPOSTA ──────────────────────────────────────────────────── #}
+{% if neg_atual %}
+<div class="bg-white border border-indigo-200 rounded-xl overflow-hidden mb-4">
+  {# header #}
+  <div class="px-4 py-3 bg-indigo-50 border-b border-indigo-200 flex flex-wrap items-center justify-between gap-2">
+    <div class="flex items-center gap-2">
+      <span class="text-xs font-bold text-indigo-700 uppercase tracking-wide">Proposta #{{ neg_atual.numero }}</span>
+      {% if neg_atual.status == 'aprovada' %}
+      <span class="inline-flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">✓ Aprovada</span>
+      {% elif neg_atual.status == 'recusada' %}
+      <span class="inline-flex items-center gap-1 text-xs font-semibold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">✗ Recusada</span>
+      {% endif %}
+    </div>
+    <div class="flex items-center gap-2">
+      {% if neg_atual.status == 'ativa' and neg.status == 'ativa' %}
+      <form method="post" action="{% url 'reservas:proposta_aprovar' neg.pk neg_atual.pk %}"
+            onsubmit="return confirm('Aprovar esta proposta e avançar a etapa?')">
         {% csrf_token %}
-        <button type="submit"
-                class="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-gray-600">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-          </svg>
-          Trazer valores da tabela
-        </button>
+        <button type="submit" class="text-xs font-semibold px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition">✓ Aprovar</button>
       </form>
+      <form method="post" action="{% url 'reservas:proposta_reprovar' neg.pk neg_atual.pk %}"
+            onsubmit="return confirm('Reprovar esta proposta?')">
+        {% csrf_token %}
+        <button type="submit" class="text-xs font-medium text-red-400 hover:text-red-600 transition">✗ Reprovar</button>
+      </form>
+      {% if neg.tabela_id %}
+      <form method="post" action="{% url 'reservas:negociacao_reset_series' neg.pk %}"
+            onsubmit="return confirm('Substituir séries pelos valores da tabela de vendas?')">
+        {% csrf_token %}
+        <button type="submit" class="text-xs text-gray-400 hover:text-indigo-600 transition">↺ Trazer tabela</button>
+      </form>
+      {% endif %}
       {% endif %}
     </div>
   </div>
 
-  <!-- Séries propostas -->
+  {# desktop: tabela #}
   {% if series %}
-  <div class="overflow-x-auto mb-4">
-    <table class="w-full text-xs">
-      <thead class="bg-brand/5 border-b border-brand/20">
+  <div class="hidden sm:block overflow-x-auto">
+    <table class="w-full text-xs table-fixed">
+      <thead class="bg-indigo-50/40 border-b border-indigo-100">
         <tr>
-          <th class="text-left px-3 py-2 font-semibold text-brand uppercase tracking-wide">Tipo</th>
-          <th class="text-left px-3 py-2 font-semibold text-brand uppercase tracking-wide">Descrição</th>
-          <th class="text-right px-3 py-2 font-semibold text-brand uppercase tracking-wide">Qtd.</th>
-          <th class="text-right px-3 py-2 font-semibold text-brand uppercase tracking-wide">Vr/Parcela</th>
-          <th class="text-right px-3 py-2 font-semibold text-brand uppercase tracking-wide">Total</th>
-          <th class="text-left px-3 py-2 font-semibold text-brand uppercase tracking-wide">Periodicidade</th>
-          <th class="text-left px-3 py-2 font-semibold text-brand uppercase tracking-wide">1º Venc.</th>
-          <th class="px-3 py-2"></th>
+          <th class="w-[187px] text-left px-4 py-2 font-semibold text-indigo-600 uppercase tracking-wide">Tipo</th>
+          <th class="w-[105px] text-right px-4 py-2 font-semibold text-indigo-600 uppercase tracking-wide">Qtd.</th>
+          <th class="w-[177px] text-right px-4 py-2 font-semibold text-indigo-600 uppercase tracking-wide">Vr/Parcela</th>
+          <th class="w-[177px] text-right px-4 py-2 font-semibold text-indigo-600 uppercase tracking-wide">Total</th>
+          <th class="w-[149px] text-left px-4 py-2 font-semibold text-indigo-600 uppercase tracking-wide">1º Venc.</th>
+          <th class="text-left px-4 py-2 font-semibold text-indigo-600 uppercase tracking-wide">Periodicidade</th>
+          <th class="w-16 px-4 py-2"></th>
         </tr>
       </thead>
       <tbody class="divide-y divide-gray-100">
         {% for s in series %}
         <tr class="hover:bg-gray-50">
-          <td class="px-3 py-2 font-medium text-gray-700">{{ s.get_tipo_display }}</td>
-          <td class="px-3 py-2 text-gray-500">{{ s.descricao|default:'—' }}</td>
-          <td class="px-3 py-2 text-right text-gray-600">{{ s.quantidade }}×</td>
-          <td class="px-3 py-2 text-right text-gray-700">{{ s.valor_por_parcela|brl_moeda }}</td>
-          <td class="px-3 py-2 text-right font-bold text-brand">{{ s.valor_total|brl_moeda }}</td>
-          <td class="px-3 py-2 text-gray-500">{% if s.periodicidade %}{{ s.get_periodicidade_display }}{% else %}—{% endif %}</td>
-          <td class="px-3 py-2 text-gray-500">{{ s.data_primeiro_vencimento|date:'d/m/Y'|default:'—' }}</td>
-          <td class="px-3 py-2 text-right">
-            {% if neg.status == 'ativa' %}
+          <td class="px-4 py-2.5 font-medium text-gray-700">{{ s.get_tipo_display }}</td>
+          <td class="px-4 py-2.5 text-right text-gray-500">{{ s.quantidade }}×</td>
+          <td class="px-4 py-2.5 text-right text-gray-600">{{ s.valor_por_parcela|brl_moeda }}</td>
+          <td class="px-4 py-2.5 text-right font-bold text-indigo-600">{{ s.valor_total|brl_moeda }}</td>
+          <td class="px-4 py-2.5 text-gray-500">{{ s.data_primeiro_vencimento|date:'d/m/Y'|default:'—' }}</td>
+          <td class="px-4 py-2.5 text-gray-500">{% if s.periodicidade %}{{ s.get_periodicidade_display }}{% else %}—{% endif %}</td>
+          <td class="px-4 py-2.5 text-right">
+            {% if neg.status == 'ativa' and neg_atual.status == 'ativa' %}
             <div class="flex items-center justify-end gap-2">
-              <button type="button"
-                      onclick="editarSerie('{% url 'reservas:serie_update' neg.pk s.pk %}')"
-                      class="text-gray-400 hover:text-brand transition" title="Editar">
+              <button type="button" onclick="editarSerie('{% url 'reservas:serie_update' neg.pk s.pk %}')"
+                      class="text-gray-300 hover:text-indigo-600 transition" title="Editar">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
               </button>
-              <form method="post" action="{% url 'reservas:serie_remove' neg.pk s.pk %}">
-                {% csrf_token %}
+              <form method="post" action="{% url 'reservas:serie_remove' neg.pk s.pk %}">{% csrf_token %}
                 <button type="submit" class="text-gray-300 hover:text-red-500 transition">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                 </button>
@@ -71,116 +154,309 @@
       </tbody>
       <tfoot class="border-t-2 border-gray-200">
         <tr class="bg-gray-50">
-          <td colspan="4" class="px-3 py-2.5 font-bold text-gray-800">Total proposto</td>
-          <td class="px-3 py-2.5 text-right font-bold text-brand">{{ neg_atual.valor_proposto|brl_moeda }}</td>
-          <td colspan="3"></td>
-        </tr>
-        {% if resumo.diferenca_total %}
-        <tr class="bg-gray-50 border-t border-gray-100">
-          <td colspan="4" class="px-3 py-2 text-xs text-gray-500">Diferença para tabela de vendas</td>
-          <td class="px-3 py-2 text-right text-xs font-semibold
-            {% if resumo.diferenca_total < 0 %}text-red-600{% elif resumo.diferenca_total > 0 %}text-green-600{% else %}text-gray-400{% endif %}">
-            {{ resumo.diferenca_total|brl_moeda }}
+          <td colspan="3" class="px-4 py-2.5 font-bold text-gray-700">Total proposto</td>
+          <td class="px-4 py-2.5 text-right font-bold text-indigo-600">{{ neg_atual.valor_proposto|brl_moeda }}</td>
+          <td colspan="2" class="px-4 py-2.5 text-xs">
+            {% if resumo.diferenca_total %}
+            <span class="font-medium {% if resumo.diferenca_total < 0 %}text-red-500{% else %}text-green-600{% endif %}">
+              {{ resumo.diferenca_total|brl_moeda }} vs tabela
+            </span>
+            {% endif %}
           </td>
-          <td colspan="3"></td>
+          <td></td>
         </tr>
-        {% endif %}
       </tfoot>
     </table>
   </div>
+  {# mobile: card rows #}
+  <div class="sm:hidden divide-y divide-gray-100">
+    {% for s in series %}
+    <div class="px-4 py-3 flex items-center justify-between">
+      <div>
+        <div class="text-sm font-medium text-gray-700">{{ s.get_tipo_display }}</div>
+        <div class="text-xs text-gray-400">{{ s.quantidade }}× · {{ s.valor_por_parcela|brl_moeda }}/parc
+          {% if s.periodicidade %} · {{ s.get_periodicidade_display }}{% endif %}
+        </div>
+      </div>
+      <div class="text-sm font-bold text-indigo-600">{{ s.valor_total|brl_moeda }}</div>
+    </div>
+    {% endfor %}
+    <div class="px-4 py-3 flex justify-between bg-indigo-50/50">
+      <span class="text-sm font-bold text-gray-700">Total</span>
+      <span class="text-sm font-bold text-indigo-600">{{ neg_atual.valor_proposto|brl_moeda }}</span>
+    </div>
+  </div>
   {% else %}
-  <p class="text-sm text-gray-400 mb-4">Nenhuma série proposta.</p>
+  <p class="px-4 py-3 text-sm text-gray-400">Nenhuma série proposta.</p>
   {% endif %}
 
-  <!-- Adicionar série -->
-  {% if neg.status == 'ativa' %}
-  <details class="group">
-    <summary class="cursor-pointer text-xs font-medium text-brand hover:underline list-none">+ Adicionar série</summary>
-    <form method="post" action="{% url 'reservas:serie_add' neg.pk %}" class="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
+  {# observações + adicionar série #}
+  <div class="px-4 py-3 border-t border-gray-100 space-y-3">
+    {% if neg.status == 'ativa' and neg_atual.status == 'ativa' %}
+    <form method="post" action="{% url 'reservas:proposta_obs_update' neg.pk neg_atual.pk %}">
       {% csrf_token %}
-      <div>
-        <label class="block text-xs text-gray-500 mb-1">Tipo</label>
-        <select name="tipo" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-brand transition">
-          {% for valor, label in tipos_serie %}
-          <option value="{{ valor }}">{{ label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div>
-        <label class="block text-xs text-gray-500 mb-1">Descrição</label>
-        <input type="text" name="descricao" placeholder="Ex: Financiamento CEF"
-               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-brand transition">
-      </div>
-      <div>
-        <label class="block text-xs text-gray-500 mb-1">Qtd. parcelas</label>
-        <input type="number" name="quantidade" value="1" min="1"
-               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-brand transition">
-      </div>
-      <div>
-        <label class="block text-xs text-gray-500 mb-1">Valor por parcela</label>
-        <input type="text" name="valor_por_parcela" placeholder="0,00" data-mask="currency"
-               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-brand transition">
-      </div>
-      <div>
-        <label class="block text-xs text-gray-500 mb-1">Periodicidade</label>
-        <select name="periodicidade" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-brand transition">
-          <option value="">—</option>
-          {% for valor, label in periodicidades %}
-          <option value="{{ valor }}">{{ label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div>
-        <label class="block text-xs text-gray-500 mb-1">Data 1º vencimento</label>
-        <input type="date" name="data_primeiro_vencimento"
-               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-brand transition">
-      </div>
-      <div class="sm:col-span-2 flex items-end">
-        <button type="submit" class="px-4 py-2 bg-brand hover:bg-brand-dark text-white rounded-lg text-xs font-medium transition">
-          Adicionar
-        </button>
+      <textarea name="observacoes" rows="2" placeholder="Observações sobre esta proposta…"
+                class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-brand transition resize-none">{{ neg_atual.observacoes }}</textarea>
+      <div class="flex items-center justify-between mt-1">
+        <details class="group">
+          <summary class="cursor-pointer text-xs font-medium text-indigo-600 hover:underline list-none">+ Adicionar série</summary>
+          <form method="post" action="{% url 'reservas:serie_add' neg.pk %}" class="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {% csrf_token %}
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Tipo</label>
+              <select name="tipo" class="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-brand">
+                {% for valor, label in tipos_serie %}<option value="{{ valor }}">{{ label }}</option>{% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Qtd.</label>
+              <input type="number" name="quantidade" value="1" min="1" class="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-brand">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Vr/Parcela</label>
+              <input type="text" name="valor_por_parcela" placeholder="0,00" data-mask="currency" class="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-brand">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Periodicidade</label>
+              <select name="periodicidade" class="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-brand">
+                <option value="">—</option>
+                {% for valor, label in periodicidades %}<option value="{{ valor }}">{{ label }}</option>{% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">1º Venc.</label>
+              <input type="date" name="data_primeiro_vencimento" class="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-brand">
+            </div>
+            <div class="flex items-end">
+              <button type="submit" class="w-full px-3 py-1.5 bg-brand hover:bg-brand-dark text-white rounded-lg text-xs font-medium transition">Adicionar</button>
+            </div>
+          </form>
+        </details>
+        <button type="submit" class="px-3 py-1.5 bg-brand hover:bg-brand-dark text-white rounded-lg text-xs font-medium transition">Salvar obs.</button>
       </div>
     </form>
-  </details>
-  {% endif %}
+    {% elif neg_atual.observacoes %}
+    <p class="text-xs text-gray-500 italic">{{ neg_atual.observacoes }}</p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{# ── CONTRAPROPOSTA ────────────────────────────────────────────── #}
+{% if neg_atual and neg.status == 'ativa' or contraproposta %}
+{% if contraproposta or neg_atual %}
+{# separador #}
+<div class="flex items-center gap-2 my-2">
+  <div class="h-px flex-1 border-t-2 border-dashed border-orange-200"></div>
+  <span class="text-xs text-orange-400 font-medium shrink-0">
+    {% if contraproposta %}Contraproposta{% else %}Sem contraproposta{% endif %}
+  </span>
+  <div class="h-px flex-1 border-t-2 border-dashed border-orange-200"></div>
 </div>
 
-<!-- Calendário de parcelas -->
+<div class="bg-white border border-orange-200 rounded-xl overflow-hidden mb-4">
+  <div class="px-4 py-3 bg-orange-50 border-b border-orange-200 flex flex-wrap items-center justify-between gap-2">
+    <div class="flex items-center gap-2">
+      <span class="text-xs font-bold text-orange-700 uppercase tracking-wide">
+        {% if contraproposta %}Contraproposta #{{ contraproposta.numero }}{% else %}Contraproposta{% endif %}
+      </span>
+      {% if contraproposta.status == 'aprovada' %}
+      <span class="inline-flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">✓ Acordo</span>
+      {% endif %}
+    </div>
+    <div class="flex items-center gap-2">
+      {% if not contraproposta and neg.status == 'ativa' and neg_atual %}
+      <form method="post" action="{% url 'reservas:contraproposta_create' neg.pk neg_atual.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="text-xs font-medium px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-600 transition">+ Criar contraproposta</button>
+      </form>
+      {% elif contraproposta and contraproposta.status == 'ativa' and neg.status == 'ativa' %}
+      <form method="post" action="{% url 'reservas:contraproposta_acordo' neg.pk contraproposta.pk %}"
+            onsubmit="return confirm('Registrar acordo e avançar a etapa?')">
+        {% csrf_token %}
+        <button type="submit" class="text-xs font-semibold px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition">✓ Acordo</button>
+      </form>
+      <form method="post" action="{% url 'reservas:contraproposta_delete' neg.pk contraproposta.pk %}"
+            onsubmit="return confirm('Excluir contraproposta e suas séries?')">
+        {% csrf_token %}
+        <button type="submit" class="text-xs text-red-400 hover:text-red-600 font-medium transition">Excluir</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if contraproposta %}
+  {# desktop: tabela #}
+  {% if cp_series %}
+  <div class="hidden sm:block overflow-x-auto">
+    <table class="w-full text-xs table-fixed">
+      <thead class="bg-orange-50/40 border-b border-orange-100">
+        <tr>
+          <th class="w-[187px] text-left px-4 py-2 font-semibold text-orange-700 uppercase tracking-wide">Tipo</th>
+          <th class="w-[105px] text-right px-4 py-2 font-semibold text-orange-700 uppercase tracking-wide">Qtd.</th>
+          <th class="w-[177px] text-right px-4 py-2 font-semibold text-orange-700 uppercase tracking-wide">Vr/Parcela</th>
+          <th class="w-[177px] text-right px-4 py-2 font-semibold text-orange-700 uppercase tracking-wide">Total</th>
+          <th class="w-[149px] text-left px-4 py-2 font-semibold text-orange-700 uppercase tracking-wide">1º Venc.</th>
+          <th class="text-left px-4 py-2 font-semibold text-orange-700 uppercase tracking-wide">Periodicidade</th>
+          <th class="w-16 px-4 py-2"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for s in cp_series %}
+        <tr class="hover:bg-gray-50">
+          <td class="px-4 py-2.5 font-medium text-gray-700">{{ s.get_tipo_display }}</td>
+          <td class="px-4 py-2.5 text-right text-gray-500">{{ s.quantidade }}×</td>
+          <td class="px-4 py-2.5 text-right text-gray-600">{{ s.valor_por_parcela|brl_moeda }}</td>
+          <td class="px-4 py-2.5 text-right font-bold text-orange-700">{{ s.valor_total|brl_moeda }}</td>
+          <td class="px-4 py-2.5 text-gray-500">{{ s.data_primeiro_vencimento|date:'d/m/Y'|default:'—' }}</td>
+          <td class="px-4 py-2.5 text-gray-500">{% if s.periodicidade %}{{ s.get_periodicidade_display }}{% else %}—{% endif %}</td>
+          <td class="px-4 py-2.5 text-right">
+            {% if neg.status == 'ativa' and contraproposta.status == 'ativa' %}
+            <div class="flex items-center justify-end gap-2">
+              <button type="button" onclick="editarSerie('{% url 'reservas:serie_update' neg.pk s.pk %}')"
+                      class="text-gray-300 hover:text-orange-600 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+              </button>
+              <form method="post" action="{% url 'reservas:serie_remove' neg.pk s.pk %}">{% csrf_token %}
+                <button type="submit" class="text-gray-300 hover:text-red-500 transition">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                </button>
+              </form>
+            </div>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot class="border-t-2 border-gray-200">
+        <tr class="bg-gray-50">
+          <td colspan="3" class="px-4 py-2.5 font-bold text-gray-700">Total contraproposta</td>
+          <td class="px-4 py-2.5 text-right font-bold text-orange-700">{{ contraproposta.valor_proposto|brl_moeda }}</td>
+          <td colspan="3"></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  {# mobile: card rows #}
+  <div class="sm:hidden divide-y divide-gray-100">
+    {% for s in cp_series %}
+    <div class="px-4 py-3 flex items-center justify-between">
+      <div>
+        <div class="text-sm font-medium text-gray-700">{{ s.get_tipo_display }}</div>
+        <div class="text-xs text-gray-400">{{ s.quantidade }}× · {{ s.valor_por_parcela|brl_moeda }}/parc</div>
+      </div>
+      <div class="text-sm font-bold text-orange-700">{{ s.valor_total|brl_moeda }}</div>
+    </div>
+    {% endfor %}
+    <div class="px-4 py-3 flex justify-between bg-orange-50/50">
+      <span class="text-sm font-bold text-gray-700">Total</span>
+      <span class="text-sm font-bold text-orange-700">{{ contraproposta.valor_proposto|brl_moeda }}</span>
+    </div>
+  </div>
+  {% else %}
+  <p class="px-4 py-3 text-sm text-gray-400">Nenhuma série na contraproposta.</p>
+  {% endif %}
+
+  {# observações + adicionar série na contraproposta #}
+  <div class="px-4 py-3 border-t border-gray-100 space-y-3">
+    {% if neg.status == 'ativa' and contraproposta.status == 'ativa' %}
+    <form method="post" action="{% url 'reservas:proposta_obs_update' neg.pk contraproposta.pk %}">
+      {% csrf_token %}
+      <textarea name="observacoes" rows="2" placeholder="Observações sobre a contraproposta…"
+                class="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-brand transition resize-none">{{ contraproposta.observacoes }}</textarea>
+      <div class="flex items-center justify-between mt-1">
+        <details class="group">
+          <summary class="cursor-pointer text-xs font-medium text-orange-600 hover:underline list-none">+ Adicionar série</summary>
+          <form method="post" action="{% url 'reservas:contraproposta_serie_add' neg.pk contraproposta.pk %}" class="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {% csrf_token %}
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Tipo</label>
+              <select name="tipo" class="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-brand">
+                {% for valor, label in tipos_serie %}<option value="{{ valor }}">{{ label }}</option>{% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Qtd.</label>
+              <input type="number" name="quantidade" value="1" min="1" class="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-brand">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Vr/Parcela</label>
+              <input type="text" name="valor_por_parcela" placeholder="0,00" data-mask="currency" class="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-brand">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Periodicidade</label>
+              <select name="periodicidade" class="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-brand">
+                <option value="">—</option>
+                {% for valor, label in periodicidades %}<option value="{{ valor }}">{{ label }}</option>{% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">1º Venc.</label>
+              <input type="date" name="data_primeiro_vencimento" class="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-brand">
+            </div>
+            <div class="flex items-end">
+              <button type="submit" class="w-full px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-medium transition">Adicionar</button>
+            </div>
+          </form>
+        </details>
+        <button type="submit" class="px-3 py-1.5 bg-brand hover:bg-brand-dark text-white rounded-lg text-xs font-medium transition">Salvar obs.</button>
+      </div>
+    </form>
+    {% elif contraproposta.observacoes %}
+    <p class="text-xs text-gray-500 italic">{{ contraproposta.observacoes }}</p>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+{% endif %}
+
+{# ── CALENDÁRIO ────────────────────────────────────────────────── #}
 {% if calendario %}
-<div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
-  <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">
-    Calendário de parcelas
-    <span class="ml-2 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">{{ calendario|length }}</span>
-  </h2>
-  <div class="overflow-x-auto">
+<details class="group bg-white border border-gray-200 rounded-xl overflow-hidden mb-4">
+  <summary class="flex items-center justify-between px-4 py-3 cursor-pointer list-none hover:bg-gray-50 transition">
+    <span class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Calendário de parcelas</span>
+    <div class="flex items-center gap-2">
+      <span class="text-xs text-gray-400">{{ calendario|length }} parcelas</span>
+      <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+      </svg>
+    </div>
+  </summary>
+  <div class="border-t border-gray-100">
     <table class="w-full text-xs">
       <thead class="bg-gray-50 border-b border-gray-200">
         <tr>
-          <th class="text-right px-3 py-2 font-semibold text-gray-500 uppercase tracking-wide w-12">Ordem</th>
-          <th class="text-left px-3 py-2 font-semibold text-gray-500 uppercase tracking-wide">Mês / Data</th>
-          <th class="text-left px-3 py-2 font-semibold text-gray-500 uppercase tracking-wide">Série</th>
-          <th class="text-right px-3 py-2 font-semibold text-gray-500 uppercase tracking-wide">Valor</th>
+          <th class="text-right px-3 py-2 text-gray-400 uppercase tracking-wide w-10">#</th>
+          <th class="text-left px-3 py-2 text-gray-400 uppercase tracking-wide">Mês</th>
+          <th class="text-left px-3 py-2 text-gray-400 uppercase tracking-wide hidden sm:table-cell">Série</th>
+          <th class="text-right px-3 py-2 text-gray-400 uppercase tracking-wide">Valor</th>
         </tr>
       </thead>
       <tbody class="divide-y divide-gray-100">
         {% for p in calendario %}
         <tr class="hover:bg-gray-50">
-          <td class="px-3 py-2 text-right text-gray-400">{{ p.ordem }}</td>
-          <td class="px-3 py-2 font-medium text-gray-800">
-            {% if p.data %}{{ p.data|date:'M/Y'|upper }}{% else %}<span class="text-gray-300">—</span>{% endif %}
-          </td>
-          <td class="px-3 py-2 text-gray-500">{{ p.serie_label }}</td>
+          <td class="px-3 py-2 text-right text-gray-300">{{ p.ordem }}</td>
+          <td class="px-3 py-2 font-medium text-gray-700">{% if p.data %}{{ p.data|date:'M/Y'|upper }}{% else %}<span class="text-gray-300">—</span>{% endif %}</td>
+          <td class="px-3 py-2 text-gray-500 hidden sm:table-cell">{{ p.serie_label }}</td>
           <td class="px-3 py-2 text-right font-medium text-brand">{{ p.valor|brl_moeda }}</td>
         </tr>
         {% endfor %}
       </tbody>
       <tfoot class="border-t-2 border-gray-200 bg-gray-50">
         <tr>
-          <td colspan="3" class="px-3 py-2.5 font-bold text-gray-800">Total</td>
-          <td class="px-3 py-2.5 text-right font-bold text-brand">{{ neg_atual.valor_proposto|brl_moeda }}</td>
+          <td colspan="2" class="px-3 py-2.5 font-bold text-gray-700">Total</td>
+          <td class="hidden sm:table-cell"></td>
+          <td class="px-3 py-2.5 text-right font-bold text-brand">
+            {% if contraproposta and contraproposta.status == 'ativa' %}{{ contraproposta.valor_proposto|brl_moeda }}
+            {% else %}{{ neg_atual.valor_proposto|brl_moeda }}{% endif %}
+          </td>
         </tr>
       </tfoot>
     </table>
   </div>
-</div>
+</details>
 {% endif %}
+
+{# form oculto para edição inline de série #}
+<div id="bloco-serie-form" class="hidden mb-4"></div>

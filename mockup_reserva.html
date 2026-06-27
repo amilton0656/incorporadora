@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Esboço — Reserva #2</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { theme: { extend: { colors: { brand: '#4F46E5' } } } }</script>
+</head>
+<body class="bg-gray-100 min-h-screen text-sm">
+
+<!-- ── CABEÇALHO ──────────────────────────────────────────────── -->
+<div class="bg-white border-b border-gray-200 px-6 py-4">
+  <div class="max-w-7xl mx-auto flex flex-wrap items-start justify-between gap-4">
+    <!-- esquerda -->
+    <div>
+      <div class="flex items-center gap-3 mb-1">
+        <span class="text-xs text-gray-400 uppercase tracking-wide">Reserva</span>
+        <span class="font-bold text-gray-900 text-lg">#2</span>
+        <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">● Ativa</span>
+        <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700">Proposta</span>
+      </div>
+      <div class="text-gray-500 text-xs">
+        Bliss Living · Bloco A · Apto 102 + Garagem G05 · Tabela Residencial Jul/26
+      </div>
+    </div>
+    <!-- direita: ações globais -->
+    <div class="flex items-center gap-2">
+      <button class="text-xs px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-600">
+        Editar reserva
+      </button>
+      <button class="text-xs px-3 py-1.5 border border-indigo-300 rounded-lg text-indigo-600 hover:bg-indigo-50 font-medium">
+        Avançar etapa →
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── CORPO ──────────────────────────────────────────────────── -->
+<div class="max-w-7xl mx-auto px-6 py-6 flex gap-6 items-start">
+
+  <!-- ╔══════════════════════════════════╗
+       ║  COLUNA ESQUERDA — info estática ║
+       ╚══════════════════════════════════╝ -->
+  <div class="w-72 shrink-0 flex flex-col gap-4">
+
+    <!-- Compradores -->
+    <div class="bg-white rounded-xl border border-gray-200 p-4">
+      <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Compradores</h3>
+      <div class="space-y-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-bold">JS</div>
+          <div>
+            <div class="text-sm font-medium text-gray-800">João da Silva</div>
+            <div class="text-xs text-gray-400">Proponente</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center text-xs font-bold">MS</div>
+          <div>
+            <div class="text-sm font-medium text-gray-800">Maria da Silva</div>
+            <div class="text-xs text-gray-400">Cônjuge</div>
+          </div>
+        </div>
+      </div>
+      <button class="mt-3 w-full text-xs text-indigo-600 hover:underline text-left">+ Adicionar parte</button>
+    </div>
+
+    <!-- Unidades -->
+    <div class="bg-white rounded-xl border border-gray-200 p-4">
+      <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Unidades</h3>
+      <div class="space-y-2">
+        <div class="flex items-center justify-between py-1.5 border-b border-gray-100">
+          <div>
+            <div class="text-sm font-medium text-gray-800">Apto 102</div>
+            <div class="text-xs text-gray-400">84 m² · 3 dorm · Principal</div>
+          </div>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-700 font-medium">Reservada</span>
+        </div>
+        <div class="flex items-center justify-between py-1.5">
+          <div>
+            <div class="text-sm font-medium text-gray-800">Garagem G05</div>
+            <div class="text-xs text-gray-400">Vaga carro · Complementar</div>
+          </div>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-700 font-medium">Reservada</span>
+        </div>
+      </div>
+      <button class="mt-3 w-full text-xs text-indigo-600 hover:underline text-left">+ Adicionar unidade</button>
+    </div>
+
+    <!-- Identificação -->
+    <div class="bg-white rounded-xl border border-gray-200 p-4">
+      <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Identificação</h3>
+      <dl class="space-y-2 text-xs">
+        <div class="flex justify-between gap-2">
+          <dt class="text-gray-400">Imobiliária</dt>
+          <dd class="text-gray-700 font-medium text-right">Imob XYZ</dd>
+        </div>
+        <div class="flex justify-between gap-2">
+          <dt class="text-gray-400">Corretor</dt>
+          <dd class="text-gray-700 font-medium text-right">Carlos Mendes</dd>
+        </div>
+        <div class="flex justify-between gap-2">
+          <dt class="text-gray-400">Data abertura</dt>
+          <dd class="text-gray-700 font-medium">01/06/2026</dd>
+        </div>
+        <div class="flex justify-between gap-2">
+          <dt class="text-gray-400">Tabela</dt>
+          <dd class="text-gray-700 font-medium text-right">Residencial Jul/26</dd>
+        </div>
+      </dl>
+    </div>
+
+    <!-- Observações da Reserva -->
+    <div class="bg-white rounded-xl border border-gray-200 p-4">
+      <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Observações</h3>
+      <p class="text-xs text-gray-500 italic">Cliente prefere financiamento CEF. Já possui carta de crédito aprovada.</p>
+    </div>
+
+  </div>
+  <!-- /coluna esquerda -->
+
+  <!-- ╔═══════════════════════════════════════════════╗
+       ║  COLUNA DIREITA — negociação financeira       ║
+       ╚═══════════════════════════════════════════════╝ -->
+  <div class="flex-1 min-w-0 flex flex-col gap-4">
+
+    <!-- ── Seletor de propostas (quando houver mais de uma) ── -->
+    <div class="flex items-center gap-2">
+      <span class="text-xs text-gray-500 font-medium">Proposta:</span>
+      <button class="px-3 py-1 rounded-lg text-xs font-semibold bg-indigo-600 text-white">#1</button>
+      <button class="px-3 py-1 rounded-lg text-xs font-medium border border-gray-300 text-gray-500 hover:bg-gray-50">#2</button>
+      <button class="px-3 py-1 rounded-lg text-xs font-medium border border-dashed border-gray-300 text-gray-400 hover:bg-gray-50">+ Nova rodada</button>
+    </div>
+
+    <!-- ── TABELA DE VENDAS (referência, compacta) ── -->
+    <details open class="group">
+      <summary class="bg-gray-50 border border-gray-200 rounded-xl px-5 py-3 flex items-center justify-between cursor-pointer list-none">
+        <div class="flex items-center gap-3">
+          <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Tabela de Vendas</span>
+          <span class="text-xs text-gray-400">Residencial Jul/26 · referência</span>
+        </div>
+        <div class="flex items-center gap-4">
+          <span class="text-sm font-bold text-gray-700">R$ 850.000</span>
+          <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </div>
+      </summary>
+      <div class="border border-t-0 border-gray-200 rounded-b-xl overflow-hidden">
+        <table class="w-full text-xs table-fixed">
+          <thead class="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th class="w-[187px] text-left px-4 py-2 font-semibold text-gray-500 uppercase tracking-wide">Tipo</th>
+              <th class="w-[105px] text-right px-4 py-2 font-semibold text-gray-500 uppercase tracking-wide">Qtd.</th>
+              <th class="w-[177px] text-right px-4 py-2 font-semibold text-gray-500 uppercase tracking-wide">Vr/Parcela</th>
+              <th class="w-[177px] text-right px-4 py-2 font-semibold text-gray-500 uppercase tracking-wide">Total</th>
+              <th class="w-[149px] text-left px-4 py-2 font-semibold text-gray-500 uppercase tracking-wide">1º Venc.</th>
+              <th class="text-left px-4 py-2 font-semibold text-gray-500 uppercase tracking-wide">Periodicidade</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100 bg-white">
+            <tr><td class="px-4 py-2.5 text-gray-700 font-medium">Ato</td><td class="px-4 py-2.5 text-right text-gray-500">1×</td><td class="px-4 py-2.5 text-right text-gray-600">R$ 50.000</td><td class="px-4 py-2.5 text-right font-semibold text-gray-700">R$ 50.000</td><td class="px-4 py-2.5 text-gray-400">01/07/2026</td><td class="px-4 py-2.5 text-gray-400">—</td></tr>
+            <tr><td class="px-4 py-2.5 text-gray-700 font-medium">Parcelas Mensais</td><td class="px-4 py-2.5 text-right text-gray-500">120×</td><td class="px-4 py-2.5 text-right text-gray-600">R$ 5.000</td><td class="px-4 py-2.5 text-right font-semibold text-gray-700">R$ 600.000</td><td class="px-4 py-2.5 text-gray-400">01/08/2026</td><td class="px-4 py-2.5 text-gray-400">Mensal</td></tr>
+            <tr><td class="px-4 py-2.5 text-gray-700 font-medium">Chaves</td><td class="px-4 py-2.5 text-right text-gray-500">1×</td><td class="px-4 py-2.5 text-right text-gray-600">R$ 200.000</td><td class="px-4 py-2.5 text-right font-semibold text-gray-700">R$ 200.000</td><td class="px-4 py-2.5 text-gray-400">01/07/2029</td><td class="px-4 py-2.5 text-gray-400">—</td></tr>
+          </tbody>
+          <tfoot class="border-t-2 border-gray-200 bg-gray-50">
+            <tr><td colspan="3" class="px-4 py-2.5 font-bold text-gray-700">Total</td><td class="px-4 py-2.5 text-right font-bold text-gray-900">R$ 850.000</td><td colspan="2"></td></tr>
+          </tfoot>
+        </table>
+      </div>
+    </details>
+
+    <!-- ── PROPOSTA #1 ── -->
+    <div class="bg-white border border-indigo-200 rounded-xl overflow-hidden">
+      <!-- header -->
+      <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-3 bg-indigo-50 border-b border-indigo-200">
+        <div class="flex items-center gap-3">
+          <span class="text-xs font-bold text-indigo-700 uppercase tracking-wide">Proposta</span>
+          <span class="text-xs text-indigo-400">#1 · criada em 01/06/2026</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <!-- quando ativa: -->
+          <button class="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition">
+            ✓ Aprovar
+          </button>
+          <button class="text-xs text-red-400 hover:text-red-600 font-medium transition">✗ Reprovar</button>
+          <span class="text-gray-300">|</span>
+          <button class="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-indigo-600 transition">
+            ↺ Trazer tabela
+          </button>
+        </div>
+      </div>
+      <!-- tabela -->
+      <table class="w-full text-xs table-fixed">
+        <thead class="bg-indigo-50/40 border-b border-indigo-100">
+          <tr>
+            <th class="w-[187px] text-left px-4 py-2 font-semibold text-indigo-600 uppercase tracking-wide">Tipo</th>
+            <th class="w-[105px] text-right px-4 py-2 font-semibold text-indigo-600 uppercase tracking-wide">Qtd.</th>
+            <th class="w-[177px] text-right px-4 py-2 font-semibold text-indigo-600 uppercase tracking-wide">Vr/Parcela</th>
+            <th class="w-[177px] text-right px-4 py-2 font-semibold text-indigo-600 uppercase tracking-wide">Total</th>
+            <th class="w-[149px] text-left px-4 py-2 font-semibold text-indigo-600 uppercase tracking-wide">1º Venc.</th>
+            <th class="text-left px-4 py-2 font-semibold text-indigo-600 uppercase tracking-wide">Periodicidade</th>
+            <th class="w-16 px-4 py-2"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          <tr class="hover:bg-gray-50"><td class="px-4 py-2.5 text-gray-700 font-medium">Ato</td><td class="px-4 py-2.5 text-right text-gray-500">1×</td><td class="px-4 py-2.5 text-right text-gray-600">R$ 45.000</td><td class="px-4 py-2.5 text-right font-bold text-indigo-600">R$ 45.000</td><td class="px-4 py-2.5 text-gray-400">01/07/2026</td><td class="px-4 py-2.5 text-gray-400">—</td><td class="px-4 py-2.5 text-right"><span class="text-gray-300 text-base">✎ ✕</span></td></tr>
+          <tr class="hover:bg-gray-50"><td class="px-4 py-2.5 text-gray-700 font-medium">Parcelas Mensais</td><td class="px-4 py-2.5 text-right text-gray-500">120×</td><td class="px-4 py-2.5 text-right text-gray-600">R$ 4.550</td><td class="px-4 py-2.5 text-right font-bold text-indigo-600">R$ 546.000</td><td class="px-4 py-2.5 text-gray-400">01/08/2026</td><td class="px-4 py-2.5 text-gray-400">Mensal</td><td class="px-4 py-2.5 text-right"><span class="text-gray-300 text-base">✎ ✕</span></td></tr>
+          <tr class="hover:bg-gray-50"><td class="px-4 py-2.5 text-gray-700 font-medium">Chaves</td><td class="px-4 py-2.5 text-right text-gray-500">1×</td><td class="px-4 py-2.5 text-right text-gray-600">R$ 180.000</td><td class="px-4 py-2.5 text-right font-bold text-indigo-600">R$ 180.000</td><td class="px-4 py-2.5 text-gray-400">01/07/2029</td><td class="px-4 py-2.5 text-gray-400">—</td><td class="px-4 py-2.5 text-right"><span class="text-gray-300 text-base">✎ ✕</span></td></tr>
+        </tbody>
+        <tfoot class="border-t-2 border-gray-200">
+          <tr class="bg-gray-50">
+            <td colspan="3" class="px-4 py-2.5 font-bold text-gray-700">Total proposto</td>
+            <td class="px-4 py-2.5 text-right font-bold text-indigo-600">R$ 771.000</td>
+            <td colspan="2" class="px-4 py-2.5 text-xs text-red-500 font-medium">− R$ 79.000 vs tabela</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+      <!-- observações + adicionar -->
+      <div class="px-5 py-3 border-t border-gray-100 flex items-start justify-between gap-4">
+        <div class="flex-1">
+          <span class="text-xs text-gray-400 font-medium">Obs:</span>
+          <span class="text-xs text-gray-500 ml-1">Cliente solicita desconto para pagamento à vista nas chaves.</span>
+        </div>
+        <button class="text-xs text-indigo-600 hover:underline shrink-0">+ Adicionar série</button>
+      </div>
+    </div>
+
+    <!-- seta de fluxo -->
+    <div class="flex items-center gap-2 px-4">
+      <div class="h-px flex-1 border-t-2 border-dashed border-orange-200"></div>
+      <span class="text-xs text-orange-400 font-medium">Contraproposta do cliente</span>
+      <div class="h-px flex-1 border-t-2 border-dashed border-orange-200"></div>
+    </div>
+
+    <!-- ── CONTRAPROPOSTA #1 ── -->
+    <div class="bg-white border border-orange-200 rounded-xl overflow-hidden">
+      <!-- header -->
+      <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-3 bg-orange-50 border-b border-orange-200">
+        <div class="flex items-center gap-3">
+          <span class="text-xs font-bold text-orange-700 uppercase tracking-wide">Contraproposta</span>
+          <span class="text-xs text-orange-400">#1 · criada em 05/06/2026</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button class="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition">
+            ✓ Acordo
+          </button>
+          <button class="text-xs text-red-400 hover:text-red-600 font-medium transition">Excluir</button>
+        </div>
+      </div>
+      <!-- tabela -->
+      <table class="w-full text-xs table-fixed">
+        <thead class="bg-orange-50/40 border-b border-orange-100">
+          <tr>
+            <th class="w-[187px] text-left px-4 py-2 font-semibold text-orange-700 uppercase tracking-wide">Tipo</th>
+            <th class="w-[105px] text-right px-4 py-2 font-semibold text-orange-700 uppercase tracking-wide">Qtd.</th>
+            <th class="w-[177px] text-right px-4 py-2 font-semibold text-orange-700 uppercase tracking-wide">Vr/Parcela</th>
+            <th class="w-[177px] text-right px-4 py-2 font-semibold text-orange-700 uppercase tracking-wide">Total</th>
+            <th class="w-[149px] text-left px-4 py-2 font-semibold text-orange-700 uppercase tracking-wide">1º Venc.</th>
+            <th class="text-left px-4 py-2 font-semibold text-orange-700 uppercase tracking-wide">Periodicidade</th>
+            <th class="w-16 px-4 py-2"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          <tr class="hover:bg-gray-50"><td class="px-4 py-2.5 text-gray-700 font-medium">Ato</td><td class="px-4 py-2.5 text-right text-gray-500">1×</td><td class="px-4 py-2.5 text-right text-gray-600">R$ 47.000</td><td class="px-4 py-2.5 text-right font-bold text-orange-700">R$ 47.000</td><td class="px-4 py-2.5 text-gray-400">01/07/2026</td><td class="px-4 py-2.5 text-gray-400">—</td><td class="px-4 py-2.5 text-right"><span class="text-gray-300 text-base">✎ ✕</span></td></tr>
+          <tr class="hover:bg-gray-50"><td class="px-4 py-2.5 text-gray-700 font-medium">Parcelas Mensais</td><td class="px-4 py-2.5 text-right text-gray-500">120×</td><td class="px-4 py-2.5 text-right text-gray-600">R$ 4.750</td><td class="px-4 py-2.5 text-right font-bold text-orange-700">R$ 570.000</td><td class="px-4 py-2.5 text-gray-400">01/08/2026</td><td class="px-4 py-2.5 text-gray-400">Mensal</td><td class="px-4 py-2.5 text-right"><span class="text-gray-300 text-base">✎ ✕</span></td></tr>
+          <tr class="hover:bg-gray-50"><td class="px-4 py-2.5 text-gray-700 font-medium">Chaves</td><td class="px-4 py-2.5 text-right text-gray-500">1×</td><td class="px-4 py-2.5 text-right text-gray-600">R$ 190.000</td><td class="px-4 py-2.5 text-right font-bold text-orange-700">R$ 190.000</td><td class="px-4 py-2.5 text-gray-400">01/07/2029</td><td class="px-4 py-2.5 text-gray-400">—</td><td class="px-4 py-2.5 text-right"><span class="text-gray-300 text-base">✎ ✕</span></td></tr>
+        </tbody>
+        <tfoot class="border-t-2 border-gray-200">
+          <tr class="bg-gray-50">
+            <td colspan="3" class="px-4 py-2.5 font-bold text-gray-700">Total contraproposta</td>
+            <td class="px-4 py-2.5 text-right font-bold text-orange-700">R$ 807.000</td>
+            <td colspan="2" class="px-4 py-2.5 text-xs text-orange-500 font-medium">− R$ 43.000 vs tabela</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+      <!-- observações + adicionar -->
+      <div class="px-5 py-3 border-t border-gray-100 flex items-start justify-between gap-4">
+        <div class="flex-1">
+          <span class="text-xs text-gray-400 font-medium">Obs:</span>
+          <span class="text-xs text-gray-500 ml-1">Aceita ato maior mas pede redução nas parcelas mensais.</span>
+        </div>
+        <button class="text-xs text-orange-600 hover:underline shrink-0">+ Adicionar série</button>
+      </div>
+    </div>
+
+    <!-- ── CALENDÁRIO (colapsível) ── -->
+    <details class="group bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <summary class="flex items-center justify-between px-5 py-3 cursor-pointer list-none border-b border-gray-100">
+        <span class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Calendário de parcelas</span>
+        <div class="flex items-center gap-3">
+          <span class="text-xs text-gray-400">4 parcelas</span>
+          <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </div>
+      </summary>
+      <table class="w-full text-xs">
+        <thead class="bg-gray-50 border-b border-gray-200">
+          <tr>
+            <th class="text-right px-4 py-2 text-gray-400 uppercase tracking-wide w-12">Nº</th>
+            <th class="text-left px-4 py-2 text-gray-400 uppercase tracking-wide">Mês</th>
+            <th class="text-left px-4 py-2 text-gray-400 uppercase tracking-wide">Série</th>
+            <th class="text-right px-4 py-2 text-gray-400 uppercase tracking-wide">Valor</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          <tr><td class="px-4 py-2 text-right text-gray-300">1</td><td class="px-4 py-2 font-medium text-gray-700">JUL/2026</td><td class="px-4 py-2 text-gray-500">Ato</td><td class="px-4 py-2 text-right font-medium text-indigo-600">R$ 47.000</td></tr>
+          <tr><td class="px-4 py-2 text-right text-gray-300">2</td><td class="px-4 py-2 font-medium text-gray-700">AGO/2026</td><td class="px-4 py-2 text-gray-500">Parcelas Mensais</td><td class="px-4 py-2 text-right font-medium text-indigo-600">R$ 4.750</td></tr>
+          <tr><td class="px-4 py-2 text-right text-gray-300">3</td><td class="px-4 py-2 font-medium text-gray-700">SET/2026</td><td class="px-4 py-2 text-gray-500">Parcelas Mensais</td><td class="px-4 py-2 text-right font-medium text-indigo-600">R$ 4.750</td></tr>
+          <tr><td class="px-4 py-2 text-right text-gray-300">…</td><td class="px-4 py-2 text-gray-300" colspan="3">mais 118 parcelas</td></tr>
+        </tbody>
+        <tfoot class="border-t-2 border-gray-200 bg-gray-50">
+          <tr><td colspan="3" class="px-4 py-2.5 font-bold text-gray-700">Total</td><td class="px-4 py-2.5 text-right font-bold text-indigo-600">R$ 807.000</td></tr>
+        </tfoot>
+      </table>
+    </details>
+
+    <!-- ── HISTÓRICO ── -->
+    <details class="group bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <summary class="flex items-center justify-between px-5 py-3 cursor-pointer list-none border-b border-gray-100">
+        <span class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Histórico de etapas</span>
+        <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+      </summary>
+      <div class="divide-y divide-gray-100">
+        <div class="px-5 py-3 flex items-start gap-3">
+          <div class="w-1.5 h-1.5 rounded-full bg-indigo-400 mt-1.5 shrink-0"></div>
+          <div class="flex-1">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-medium text-gray-700">Cadastro → Proposta</span>
+              <span class="text-xs text-gray-400">01/06/2026</span>
+            </div>
+            <div class="text-xs text-gray-400 mt-0.5">por João Corretor</div>
+          </div>
+        </div>
+        <div class="px-5 py-3 flex items-start gap-3">
+          <div class="w-1.5 h-1.5 rounded-full bg-indigo-400 mt-1.5 shrink-0"></div>
+          <div class="flex-1">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-medium text-gray-700">Proposta → Em Negociação</span>
+              <span class="text-xs text-gray-400">03/06/2026</span>
+            </div>
+            <div class="text-xs text-gray-400 mt-0.5">por João Corretor · Aguardando retorno do cliente</div>
+          </div>
+        </div>
+      </div>
+    </details>
+
+  </div>
+  <!-- /coluna direita -->
+
+</div>
+<!-- /corpo -->
+
+</body>
+</html>
