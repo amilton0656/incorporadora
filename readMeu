@@ -1,1 +1,8 @@
 .\.venv\Scripts\activate
+
+cd /var/www/incorporadora
+git pull
+systemctl restart incorporadora
+
+powershell -ExecutionPolicy Bypass -File .\db_pull.ps1
+powershell -ExecutionPolicy Bypass -File .\db_push.ps1
