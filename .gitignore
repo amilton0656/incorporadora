@@ -45,6 +45,11 @@ media/
 .DS_Store
 Thumbs.db
 
+# Scripts de sync do banco (leem .env com senha)
+db_pull.ps1
+db_push.ps1
+db.sqlite3.bak
+
 # Static collected
 staticfiles/
 static/collected/
